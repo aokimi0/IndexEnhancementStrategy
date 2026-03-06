@@ -1,0 +1,26 @@
+# Cursor 本地规则与工作区配置
+.cursorrules
+.cursor/
+.cursorignore
+
+# Python
+__pycache__/
+*.py[cod]
+
+# 环境变量与本地虚拟环境
+.env
+.venv/
+venv/
+
+# 本地数据与缓存
+data/raw/*
+data/processed/*
+data/cache/*
+!data/.gitkeep
+
+# 日志与报告产物
+logs/*
+!logs/.gitkeep
+
+# Notebook 检查点
+.ipynb_checkpoints/
