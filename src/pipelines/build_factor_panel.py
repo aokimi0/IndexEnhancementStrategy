@@ -5,7 +5,7 @@ from __future__ import annotations
 import argparse
 
 from src.config import ProjectConfig
-from src.data import DataService, TushareClient
+from src.data import AkshareClient, DataService, TushareClient
 from src.factors import FactorEngine
 
 
@@ -28,7 +28,38 @@ def parse_args() -> argparse.Namespace:
         default="processed/hs300_factor_panel.csv",
         help="输出到 data/ 目录下的相对路径",
     )
+    parser.add_argument(
+        "--data-source",
+        choices=["akshare", "tushare", "auto"],
+        default="akshare",
+        help="数据源，默认使用 akshare",
+    )
+    parser.add_argument(
+        "--universe-limit",
+        type=int,
+        default=0,
+        help="限制股票池数量，默认 0 表示不限制，便于先做小样本验证",
+    )
     return parser.parse_args()
+
+
+def build_client(data_source: str, config: ProjectConfig) -> AkshareClient | TushareClient:
+    """根据参数创建数据客户端。
+
+    Args:
+        data_source: 数据源类型。
+        config: 项目配置。
+
+    Returns:
+        AkshareClient | TushareClient: 数据客户端实例。
+    """
+    if data_source == "akshare":
+        return AkshareClient()
+    if data_source == "tushare":
+        return TushareClient(token=config.tushare_token or "")
+    if config.tushare_token:
+        return TushareClient(token=config.tushare_token)
+    return AkshareClient()
 
 
 def main() -> None:
@@ -37,7 +68,7 @@ def main() -> None:
     config = ProjectConfig.from_root()
     config.ensure_directories()
 
-    client = TushareClient(token=config.tushare_token or "")
+    client = build_client(args.data_source, config)
     data_service = DataService(client=client, config=config)
     factor_engine = FactorEngine()
 
@@ -45,6 +76,7 @@ def main() -> None:
         start_date=args.start_date,
         end_date=args.end_date,
         index_code=args.index_code,
+        universe_limit=args.universe_limit or None,
     )
     factor_panel = factor_engine.compute_factors(bundle.research_panel)
     labeled_panel = factor_engine.build_excess_return_label(

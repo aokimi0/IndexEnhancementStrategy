@@ -52,6 +52,7 @@ IndexEnhancementStrategy/
 - `docs/mvp.md`：最小可行研究原型定义
 - `docs/experiments.md`：实验矩阵与对照方案
 - `docs/references.md`：外部参考实现与模块映射
+- `docs/experiment_log.md`：当前阶段实验记录与结果汇总
 
 ## 后续实现顺序
 

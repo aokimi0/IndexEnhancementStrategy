@@ -41,6 +41,26 @@ class FactorEngine:
             pd.DataFrame: 附带因子列的数据表。
         """
         frame = panel.copy()
+        for column in ("turnover_rate", "pe_ttm", "pb", "roe", "grossprofitmargin"):
+            if column not in frame.columns:
+                frame[column] = np.nan
+        numeric_columns = [
+            "open",
+            "high",
+            "low",
+            "close",
+            "pre_close",
+            "vol",
+            "amount",
+            "turnover_rate",
+            "pe_ttm",
+            "pb",
+            "roe",
+            "grossprofitmargin",
+        ]
+        for column in numeric_columns:
+            if column in frame.columns:
+                frame[column] = pd.to_numeric(frame[column], errors="coerce")
         frame = frame.sort_values(["ts_code", "trade_date"]).reset_index(drop=True)
         grouped = frame.groupby("ts_code", group_keys=False)
 

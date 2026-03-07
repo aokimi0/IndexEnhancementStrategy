@@ -1,0 +1,13 @@
+# 核心数据与计算
+numpy
+pandas
+
+# 免费数据源
+akshare
+
+# 可选数据源
+tushare
+
+# 机器学习
+lightgbm
+scikit-learn
