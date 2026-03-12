@@ -7,6 +7,7 @@ import argparse
 from src.config import ProjectConfig
 from src.data import AkshareClient, DataService, TushareClient
 from src.factors import FactorEngine
+from src.utils.console import configure_console_output
 
 
 def parse_args() -> argparse.Namespace:
@@ -64,6 +65,7 @@ def build_client(data_source: str, config: ProjectConfig) -> AkshareClient | Tus
 
 def main() -> None:
     """执行数据读取和因子构建流程。"""
+    configure_console_output()
     args = parse_args()
     config = ProjectConfig.from_root()
     config.ensure_directories()
@@ -72,17 +74,21 @@ def main() -> None:
     data_service = DataService(client=client, config=config)
     factor_engine = FactorEngine()
 
+    print("[Pipeline] 开始加载研究数据", flush=True)
     bundle = data_service.build_research_panel(
         start_date=args.start_date,
         end_date=args.end_date,
         index_code=args.index_code,
         universe_limit=args.universe_limit or None,
     )
+    print("[Pipeline] 开始计算因子", flush=True)
     factor_panel = factor_engine.compute_factors(bundle.research_panel)
+    print("[Pipeline] 开始生成超额收益标签", flush=True)
     labeled_panel = factor_engine.build_excess_return_label(
         factor_panel=factor_panel,
         benchmark=bundle.benchmark,
     )
+    print("[Pipeline] 开始标准化模型面板", flush=True)
     model_panel = factor_engine.prepare_model_panel(labeled_panel)
 
     output_path = data_service.save_frame(model_panel, args.output)

@@ -147,3 +147,12 @@ class TushareClient:
             end_date=end_date,
             fields=fields,
         )
+
+    def macro_m2_yoy(
+        self,
+        start_date: str,
+        end_date: str,
+    ) -> pd.DataFrame:
+        """返回空的 M2 同比表。"""
+        del start_date, end_date
+        return pd.DataFrame(columns=["trade_date", "m2_yoy"])

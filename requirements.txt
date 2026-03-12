@@ -4,6 +4,7 @@ pandas
 
 # 免费数据源
 akshare
+baostock
 
 # 可选数据源
 tushare
@@ -11,3 +12,6 @@ tushare
 # 机器学习
 lightgbm
 scikit-learn
+tqdm
+cvxpy
+matplotlib

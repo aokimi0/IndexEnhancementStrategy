@@ -41,7 +41,18 @@ class FactorEngine:
             pd.DataFrame: 附带因子列的数据表。
         """
         frame = panel.copy()
-        for column in ("turnover_rate", "pe_ttm", "pb", "roe", "grossprofitmargin"):
+        for column in (
+            "turnover_rate",
+            "pe_ttm",
+            "pb",
+            "roe",
+            "grossprofitmargin",
+            "netprofitmargin",
+            "yoynetprofit",
+            "assetturnover",
+            "cfotoor",
+            "equitymultiplier",
+        ):
             if column not in frame.columns:
                 frame[column] = np.nan
         numeric_columns = [
@@ -57,6 +68,11 @@ class FactorEngine:
             "pb",
             "roe",
             "grossprofitmargin",
+            "netprofitmargin",
+            "yoynetprofit",
+            "assetturnover",
+            "cfotoor",
+            "equitymultiplier",
         ]
         for column in numeric_columns:
             if column in frame.columns:
@@ -88,6 +104,16 @@ class FactorEngine:
             frame["roe"] = np.nan
         if "grossprofitmargin" not in frame.columns:
             frame["grossprofitmargin"] = np.nan
+        if "netprofitmargin" not in frame.columns:
+            frame["netprofitmargin"] = np.nan
+        if "yoynetprofit" not in frame.columns:
+            frame["yoynetprofit"] = np.nan
+        if "assetturnover" not in frame.columns:
+            frame["assetturnover"] = np.nan
+        if "cfotoor" not in frame.columns:
+            frame["cfotoor"] = np.nan
+        if "equitymultiplier" not in frame.columns:
+            frame["equitymultiplier"] = np.nan
 
         return frame
 
@@ -109,6 +135,7 @@ class FactorEngine:
         """
         frame = factor_panel.copy()
         frame = frame.sort_values(["ts_code", "trade_date"]).reset_index(drop=True)
+        frame["trade_date"] = frame["trade_date"].astype(str)
         grouped = frame.groupby("ts_code", group_keys=False)
         frame[f"future_return_{horizon}d"] = (
             grouped["close"].shift(-horizon) / frame["close"] - 1.0
@@ -116,11 +143,17 @@ class FactorEngine:
 
         benchmark_frame = benchmark.copy()
         benchmark_frame = benchmark_frame.sort_values("trade_date").reset_index(drop=True)
+        benchmark_frame["trade_date"] = benchmark_frame["trade_date"].astype(str)
+        benchmark_frame["benchmark_daily_return"] = benchmark_frame["close"].pct_change()
         benchmark_frame[f"benchmark_future_return_{horizon}d"] = (
             benchmark_frame["close"].shift(-horizon) / benchmark_frame["close"] - 1.0
         )
         benchmark_frame = benchmark_frame[
-            ["trade_date", f"benchmark_future_return_{horizon}d"]
+            [
+                "trade_date",
+                "benchmark_daily_return",
+                f"benchmark_future_return_{horizon}d",
+            ]
         ]
 
         frame = frame.merge(benchmark_frame, on="trade_date", how="left")
@@ -161,6 +194,10 @@ class FactorEngine:
             "bp",
             "roe",
             "grossprofitmargin",
+            "netprofitmargin",
+            "yoynetprofit",
+            "assetturnover",
+            "cfotoor",
             "ret_20",
             "ret_60",
             "volatility_20",

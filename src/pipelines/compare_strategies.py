@@ -7,6 +7,7 @@ import argparse
 import pandas as pd
 
 from src.config import ProjectConfig
+from src.utils.console import configure_console_output
 
 
 def parse_args() -> argparse.Namespace:
@@ -32,6 +33,7 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     """执行策略指标对比。"""
+    configure_console_output()
     args = parse_args()
     config = ProjectConfig.from_root()
     config.ensure_directories()

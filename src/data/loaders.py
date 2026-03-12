@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Callable
 
 import pandas as pd
+from tqdm.auto import tqdm
 
 from src.config import ProjectConfig
 from src.data.akshare_client import AkshareClient
@@ -74,7 +75,7 @@ class DataService:
             pd.DataFrame: 指数成分权重表。
         """
         cache_path = self._build_cache_path(
-            dataset_name="index_components",
+            dataset_name="index_components_v2",
             object_name=index_code,
             start_date=start_date,
             end_date=end_date,
@@ -175,7 +176,7 @@ class DataService:
             "pe_ttm,pb,total_mv,float_mv,ps_ttm,dv_ttm"
         )
         frame = self._concat_by_code(
-            dataset_name="daily_basic",
+            dataset_name="daily_basic_v2",
             ts_codes=ts_codes,
             start_date=start_date,
             end_date=end_date,
@@ -247,9 +248,12 @@ class DataService:
         Returns:
             pd.DataFrame: 财务指标表。
         """
-        fields = "ts_code,ann_date,end_date,roe,grossprofit_margin"
+        fields = (
+            "ts_code,ann_date,end_date,roe,grossprofit_margin,netprofit_margin,"
+            "yoy_net_profit,asset_turnover,cfo_to_or,equity_multiplier"
+        )
         frame = self._concat_by_code(
-            dataset_name="financial_indicators",
+            dataset_name="financial_indicators_v2",
             ts_codes=ts_codes,
             start_date=start_date,
             end_date=end_date,
@@ -262,9 +266,33 @@ class DataService:
         )
         if frame.empty:
             return pd.DataFrame(
-                columns=["ts_code", "ann_date", "end_date", "roe", "grossprofit_margin"]
+                columns=[
+                    "ts_code",
+                    "ann_date",
+                    "end_date",
+                    "roe",
+                    "grossprofit_margin",
+                    "netprofit_margin",
+                    "yoy_net_profit",
+                    "asset_turnover",
+                    "cfo_to_or",
+                    "equity_multiplier",
+                ]
             )
         return frame.sort_values(["ts_code", "ann_date"]).reset_index(drop=True)
+
+    def load_stock_industry(self, ts_codes: list[str]) -> pd.DataFrame:
+        """批量加载个股行业分类。"""
+        frame = self._concat_by_code(
+            dataset_name="stock_industry_v1",
+            ts_codes=ts_codes,
+            start_date="static",
+            end_date="static",
+            loader=lambda code: self.client.stock_industry(ts_code=code),
+        )
+        if frame.empty:
+            return pd.DataFrame(columns=["ts_code", "industry_name"])
+        return frame.drop_duplicates(subset=["ts_code"]).reset_index(drop=True)
 
     def load_northbound_flow(
         self,
@@ -289,6 +317,29 @@ class DataService:
         )
         if frame.empty:
             return frame
+        return frame.sort_values("trade_date").reset_index(drop=True)
+
+    def load_macro_m2_yoy(
+        self,
+        start_date: str,
+        end_date: str,
+    ) -> pd.DataFrame:
+        """加载 M2 同比数据。"""
+        cache_path = self._build_cache_path(
+            dataset_name="macro_m2_yoy",
+            object_name="m2",
+            start_date=start_date,
+            end_date=end_date,
+        )
+        frame = self._load_or_cache(
+            cache_path=cache_path,
+            loader=lambda: self.client.macro_m2_yoy(
+                start_date=start_date,
+                end_date=end_date,
+            ),
+        )
+        if frame.empty:
+            return pd.DataFrame(columns=["trade_date", "m2_yoy"])
         return frame.sort_values("trade_date").reset_index(drop=True)
 
     def load_stock_minute(
@@ -389,6 +440,10 @@ class DataService:
         Returns:
             DataBundle: 研究数据集合。
         """
+        self._print_stage(
+            f"开始构建研究面板，区间 {start_date} - {end_date}，基准 {index_code}"
+        )
+        self._print_stage("阶段 1/6：加载指数成分与研究股票池")
         universe = self.get_index_components(
             index_code=index_code,
             start_date=start_date,
@@ -400,19 +455,28 @@ class DataService:
             end_date=end_date,
             universe_limit=universe_limit,
         )
+        self._print_stage(f"研究股票池规模：{len(ts_codes)}")
+        self._print_stage("阶段 2/6：加载个股日线行情")
         daily = self.load_stock_daily(ts_codes, start_date, end_date)
+        self._print_stage("阶段 3/6：加载日频估值与换手率")
         daily_basic = self.load_stock_daily_basic(ts_codes, start_date, end_date)
+        self._print_stage("阶段 4/6：加载季度财务指标")
         financial_indicators = self.load_financial_indicators(
             ts_codes=ts_codes,
             start_date=start_date,
             end_date=end_date,
         )
+        self._print_stage("阶段 5/7：加载行业分类与基准权重")
+        stock_industry = self.load_stock_industry(ts_codes)
+        benchmark_profile = self._build_benchmark_profile(universe=universe, ts_codes=ts_codes)
+        self._print_stage("阶段 6/8：加载基准指数、北向资金与 M2")
         benchmark = self.load_hs300_benchmark(
             start_date=start_date,
             end_date=end_date,
             index_code=index_code,
         )
         northbound = self.load_northbound_flow(start_date=start_date, end_date=end_date)
+        macro_m2 = self.load_macro_m2_yoy(start_date=start_date, end_date=end_date)
 
         if daily.empty:
             empty_panel = daily.copy()
@@ -426,20 +490,43 @@ class DataService:
                 research_panel=empty_panel,
             )
 
+        daily = daily.copy()
+        daily["trade_date"] = daily["trade_date"].astype(str)
+        if not daily_basic.empty:
+            daily_basic = daily_basic.copy()
+            daily_basic["trade_date"] = daily_basic["trade_date"].astype(str)
         panel = daily.merge(
             daily_basic,
             on=["ts_code", "trade_date"],
             how="left",
             suffixes=("", "_basic"),
         ) if not daily_basic.empty else daily.copy()
+        if "turnover_rate_basic" in panel.columns:
+            panel["turnover_rate"] = panel["turnover_rate"].where(
+                panel["turnover_rate"].notna(),
+                panel["turnover_rate_basic"],
+            )
+            panel = panel.drop(columns=["turnover_rate_basic"])
         panel = self._merge_financial_indicators(panel, financial_indicators)
+        if not stock_industry.empty:
+            panel = panel.merge(stock_industry, on="ts_code", how="left")
+        if not benchmark_profile.empty:
+            panel = panel.merge(benchmark_profile, on="ts_code", how="left")
         if not northbound.empty:
             panel = panel.merge(northbound, on="trade_date", how="left")
+            if "north_money" in panel.columns:
+                panel["northbound_net_inflow"] = pd.to_numeric(
+                    panel["north_money"],
+                    errors="coerce",
+                )
+        if not macro_m2.empty:
+            panel = self._merge_macro_series(panel=panel, macro_frame=macro_m2)
         if "ts_code" not in panel.columns and "ts_code_x" in panel.columns:
             panel["ts_code"] = panel["ts_code_x"]
         if "trade_date" not in panel.columns and "trade_date_x" in panel.columns:
             panel["trade_date"] = panel["trade_date_x"]
         panel = panel.sort_values(["ts_code", "trade_date"]).reset_index(drop=True)
+        self._print_stage(f"阶段 8/8：研究面板构建完成，共 {len(panel)} 行")
 
         return DataBundle(
             universe=universe,
@@ -484,7 +571,15 @@ class DataService:
             pd.DataFrame: 拼接后的数据表。
         """
         frames: list[pd.DataFrame] = []
-        for ts_code in ts_codes:
+        progress = tqdm(
+            ts_codes,
+            desc=f"{dataset_name}",
+            unit="stock",
+            dynamic_ncols=True,
+            ascii=True,
+        )
+        for ts_code in progress:
+            progress.set_postfix_str(ts_code, refresh=False)
             cache_path = self._build_cache_path(
                 dataset_name=dataset_name,
                 object_name=ts_code,
@@ -508,6 +603,44 @@ class DataService:
             return pd.DataFrame()
         return pd.concat(frames, ignore_index=True)
 
+    @staticmethod
+    def _print_stage(message: str) -> None:
+        """打印阶段性进度信息。"""
+        print(f"[DataService] {message}", flush=True)
+
+    @staticmethod
+    def _build_benchmark_profile(
+        universe: pd.DataFrame,
+        ts_codes: list[str],
+    ) -> pd.DataFrame:
+        """基于指数成分快照构建基准权重画像。"""
+        if universe.empty:
+            return pd.DataFrame(columns=["ts_code", "benchmark_weight"])
+
+        if "weight" not in universe.columns:
+            profile = pd.DataFrame({"ts_code": sorted(set(ts_codes))})
+            profile["benchmark_weight"] = 1.0 / len(profile) if not profile.empty else pd.NA
+            return profile
+
+        profile = (
+            universe[["con_code", "weight"]]
+            .dropna(subset=["con_code"])
+            .drop_duplicates(subset=["con_code"])
+            .rename(columns={"con_code": "ts_code", "weight": "benchmark_weight"})
+        )
+        profile = profile[profile["ts_code"].isin(ts_codes)].copy()
+        profile["benchmark_weight"] = pd.to_numeric(
+            profile["benchmark_weight"],
+            errors="coerce",
+        )
+        if profile["benchmark_weight"].notna().any():
+            weight_sum = profile["benchmark_weight"].sum()
+            if weight_sum > 0:
+                profile["benchmark_weight"] = profile["benchmark_weight"] / weight_sum
+        else:
+            profile["benchmark_weight"] = 1.0 / len(profile) if not profile.empty else pd.NA
+        return profile.reset_index(drop=True)
+
     def _merge_financial_indicators(
         self,
         daily_panel: pd.DataFrame,
@@ -527,20 +660,42 @@ class DataService:
 
         result_frames: list[pd.DataFrame] = []
         financial_frame = financial_indicators.rename(
-            columns={"grossprofit_margin": "grossprofitmargin"}
+            columns={
+                "grossprofit_margin": "grossprofitmargin",
+                "netprofit_margin": "netprofitmargin",
+                "yoy_net_profit": "yoynetprofit",
+                "asset_turnover": "assetturnover",
+                "cfo_to_or": "cfotoor",
+                "equity_multiplier": "equitymultiplier",
+            }
         ).copy()
-        financial_frame["ann_date"] = pd.to_datetime(financial_frame["ann_date"])
+        financial_frame["ann_date"] = pd.to_datetime(
+            financial_frame["ann_date"].astype(str),
+            format="%Y%m%d",
+            errors="coerce",
+        )
 
         for ts_code, stock_frame in daily_panel.groupby("ts_code", group_keys=False):
             stock_daily = stock_frame.sort_values("trade_date").copy()
-            stock_daily["trade_date"] = pd.to_datetime(stock_daily["trade_date"])
+            stock_daily["trade_date"] = pd.to_datetime(
+                stock_daily["trade_date"].astype(str),
+                format="%Y%m%d",
+                errors="coerce",
+            )
             stock_financial = financial_frame[financial_frame["ts_code"] == ts_code]
             if stock_financial.empty:
                 stock_daily["roe"] = pd.NA
                 stock_daily["grossprofitmargin"] = pd.NA
+                stock_daily["netprofitmargin"] = pd.NA
+                stock_daily["yoynetprofit"] = pd.NA
+                stock_daily["assetturnover"] = pd.NA
+                stock_daily["cfotoor"] = pd.NA
+                stock_daily["equitymultiplier"] = pd.NA
                 result_frames.append(stock_daily)
                 continue
 
+            stock_daily = stock_daily.dropna(subset=["trade_date"])
+            stock_financial = stock_financial.dropna(subset=["ann_date"])
             merged = pd.merge_asof(
                 stock_daily,
                 stock_financial.sort_values("ann_date"),
@@ -555,6 +710,44 @@ class DataService:
         result["trade_date"] = result["trade_date"].dt.strftime("%Y%m%d")
         if "ann_date" in result.columns:
             result["ann_date"] = result["ann_date"].dt.strftime("%Y%m%d")
+        return result.sort_values(["ts_code", "trade_date"]).reset_index(drop=True)
+
+    @staticmethod
+    def _merge_macro_series(
+        panel: pd.DataFrame,
+        macro_frame: pd.DataFrame,
+    ) -> pd.DataFrame:
+        """将低频宏观变量向交易日后向对齐。"""
+        if panel.empty or macro_frame.empty:
+            return panel
+
+        result_frames: list[pd.DataFrame] = []
+        macro_copy = macro_frame.copy()
+        macro_copy["trade_date"] = pd.to_datetime(
+            macro_copy["trade_date"].astype(str),
+            format="%Y%m%d",
+            errors="coerce",
+        )
+        macro_copy = macro_copy.dropna(subset=["trade_date"]).sort_values("trade_date")
+
+        for _, stock_frame in panel.groupby("ts_code", group_keys=False):
+            stock_daily = stock_frame.sort_values("trade_date").copy()
+            stock_daily["trade_date"] = pd.to_datetime(
+                stock_daily["trade_date"].astype(str),
+                format="%Y%m%d",
+                errors="coerce",
+            )
+            stock_daily = stock_daily.dropna(subset=["trade_date"])
+            merged = pd.merge_asof(
+                stock_daily,
+                macro_copy,
+                on="trade_date",
+                direction="backward",
+            )
+            result_frames.append(merged)
+
+        result = pd.concat(result_frames, ignore_index=True)
+        result["trade_date"] = result["trade_date"].dt.strftime("%Y%m%d")
         return result.sort_values(["ts_code", "trade_date"]).reset_index(drop=True)
 
     def _build_cache_path(

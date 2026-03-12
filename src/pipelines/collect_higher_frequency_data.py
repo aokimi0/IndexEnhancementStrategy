@@ -6,6 +6,7 @@ import argparse
 
 from src.config import ProjectConfig
 from src.data import AkshareClient, DataService
+from src.utils.console import configure_console_output
 
 
 def parse_args() -> argparse.Namespace:
@@ -52,6 +53,7 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     """执行高频数据采集。"""
+    configure_console_output()
     args = parse_args()
     config = ProjectConfig.from_root()
     config.ensure_directories()

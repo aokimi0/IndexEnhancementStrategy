@@ -66,7 +66,8 @@ IndexEnhancementStrategy/
 ## 当前可运行入口
 
 当前仓库已经补齐第一版“数据读取 -> 因子构建 -> 标签生成”骨架。
-设置环境变量 `TUSHARE_TOKEN` 后，可在项目根目录执行：
+当前默认使用 `akshare` 行情 + `baostock` 基本面补充，无需 `TUSHARE_TOKEN`。
+在项目根目录执行：
 
 ```bash
 python -m src.pipelines.build_factor_panel --start-date 20180101 --end-date 20241231
