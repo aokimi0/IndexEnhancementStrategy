@@ -124,6 +124,26 @@
 - 去掉外部数据
 - 去掉风险约束
 
+### 当前实现口径
+
+当前仓库已经补充标准化的特征分组消融脚本 `src/pipelines/run_feature_ablation.py`。
+为保证实验规模可控、结果便于写入论文，默认优先采用以下分组对照：
+
+- `fundamental_only`：`value + quality`
+- `technical_only`：`technical + liquidity`
+- `full_factor`：`value + quality + technical + liquidity`
+- `full_with_external`：`value + quality + technical + liquidity + external`
+
+若需要更细粒度论文分析，可进一步使用自定义方案扩展为“去掉单一分组”的消融版本。
+
+### 默认输出文件
+
+- 汇总表：`data/processed/lightgbm_feature_ablation_summary_*.csv`
+- 单方案指标：`data/processed/feature_ablation_*/metrics_*.csv`
+- 单方案净值：`data/processed/feature_ablation_*/nav_*.csv`
+- 单方案持仓：`data/processed/feature_ablation_*/positions_*.csv`
+- 单方案重要性：`data/processed/feature_ablation_*/importance_*.csv`
+
 ### 输出
 
 - 各消融版本指标表

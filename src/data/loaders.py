@@ -342,6 +342,29 @@ class DataService:
             return pd.DataFrame(columns=["trade_date", "m2_yoy"])
         return frame.sort_values("trade_date").reset_index(drop=True)
 
+    def load_macro_interest_rate_spread(
+        self,
+        start_date: str,
+        end_date: str,
+    ) -> pd.DataFrame:
+        """加载国债期限利差数据。"""
+        cache_path = self._build_cache_path(
+            dataset_name="macro_interest_rate_spread",
+            object_name="spread",
+            start_date=start_date,
+            end_date=end_date,
+        )
+        frame = self._load_or_cache(
+            cache_path=cache_path,
+            loader=lambda: self.client.macro_interest_rate_spread(
+                start_date=start_date,
+                end_date=end_date,
+            ) if hasattr(self.client, "macro_interest_rate_spread") else pd.DataFrame(columns=["trade_date", "cn_spread_10y_2y"]),
+        )
+        if frame.empty:
+            return pd.DataFrame(columns=["trade_date", "cn_spread_10y_2y"])
+        return frame.sort_values("trade_date").reset_index(drop=True)
+
     def load_stock_minute(
         self,
         ts_codes: list[str],
@@ -469,7 +492,7 @@ class DataService:
         self._print_stage("阶段 5/7：加载行业分类与基准权重")
         stock_industry = self.load_stock_industry(ts_codes)
         benchmark_profile = self._build_benchmark_profile(universe=universe, ts_codes=ts_codes)
-        self._print_stage("阶段 6/8：加载基准指数、北向资金与 M2")
+        self._print_stage("阶段 6/8：加载基准指数、北向资金与 M2 及利差")
         benchmark = self.load_hs300_benchmark(
             start_date=start_date,
             end_date=end_date,
@@ -477,6 +500,7 @@ class DataService:
         )
         northbound = self.load_northbound_flow(start_date=start_date, end_date=end_date)
         macro_m2 = self.load_macro_m2_yoy(start_date=start_date, end_date=end_date)
+        macro_spread = self.load_macro_interest_rate_spread(start_date=start_date, end_date=end_date)
 
         if daily.empty:
             empty_panel = daily.copy()
@@ -521,6 +545,8 @@ class DataService:
                 )
         if not macro_m2.empty:
             panel = self._merge_macro_series(panel=panel, macro_frame=macro_m2)
+        if not macro_spread.empty:
+            panel = self._merge_macro_series(panel=panel, macro_frame=macro_spread)
         if "ts_code" not in panel.columns and "ts_code_x" in panel.columns:
             panel["ts_code"] = panel["ts_code_x"]
         if "trade_date" not in panel.columns and "trade_date_x" in panel.columns:

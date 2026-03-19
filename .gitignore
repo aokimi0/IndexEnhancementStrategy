@@ -24,3 +24,5 @@ logs/*
 
 # Notebook 检查点
 .ipynb_checkpoints/
+
+reference/

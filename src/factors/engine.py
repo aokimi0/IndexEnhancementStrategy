@@ -167,20 +167,93 @@ class FactorEngine:
         self,
         panel: pd.DataFrame,
         factor_columns: list[str] | None = None,
+        neutralize_by_industry: bool = True,
     ) -> pd.DataFrame:
         """生成供模型训练使用的标准化因子面板。
 
         Args:
             panel: 原始因子面板。
             factor_columns: 因子列列表。为空时使用默认核心因子。
+            neutralize_by_industry: 是否进行行业中性化（若面板中存在 industry_name 列）。
 
         Returns:
             pd.DataFrame: 预处理后的面板数据。
         """
         selected_columns = factor_columns or self.default_factor_columns()
         frame = winsorize_by_mad(panel, columns=selected_columns)
-        frame = zscore_by_group(frame, columns=selected_columns)
+        
+        group_cols = ["trade_date"]
+        if neutralize_by_industry and "industry_name" in frame.columns:
+            group_cols.append("industry_name")
+            
+        frame = zscore_by_group(frame, columns=selected_columns, group_col=group_cols)
         return frame
+
+    @staticmethod
+    def feature_groups() -> dict[str, list[str]]:
+        """返回按论文语义划分的因子分组。
+
+        Returns:
+            dict[str, list[str]]: 分组名到因子列列表的映射。
+        """
+        return {
+            "value": ["ep_ttm", "bp"],
+            "quality": [
+                "roe",
+                "grossprofitmargin",
+                "netprofitmargin",
+                "yoynetprofit",
+                "assetturnover",
+                "cfotoor",
+            ],
+            "technical": ["ret_20", "ret_60", "volatility_20"],
+            "liquidity": ["turnover_20"],
+            "leverage": ["equitymultiplier"],
+            "external": ["northbound_net_inflow", "m2_yoy", "cn_spread_10y_2y"],
+        }
+
+    @classmethod
+    def resolve_feature_columns(
+        cls,
+        feature_groups: list[str] | None = None,
+        extra_columns: list[str] | None = None,
+        available_columns: list[str] | None = None,
+    ) -> list[str]:
+        """根据分组解析并过滤最终特征列。
+
+        Args:
+            feature_groups: 需要启用的因子分组。为空时使用默认核心分组。
+            extra_columns: 额外追加的特征列。
+            available_columns: 当前面板中实际存在的列，用于过滤不可用特征。
+
+        Returns:
+            list[str]: 去重后且按顺序排列的特征列列表。
+
+        Raises:
+            ValueError: 当传入未知分组时抛出异常。
+        """
+        selected_groups = feature_groups or ["value", "quality", "technical", "liquidity"]
+        group_mapping = cls.feature_groups()
+        resolved_columns: list[str] = []
+        seen_columns: set[str] = set()
+
+        for group_name in selected_groups:
+            if group_name not in group_mapping:
+                raise ValueError(f"未知因子分组: {group_name}")
+            for column in group_mapping[group_name]:
+                if column not in seen_columns:
+                    resolved_columns.append(column)
+                    seen_columns.add(column)
+
+        for column in extra_columns or []:
+            if column not in seen_columns:
+                resolved_columns.append(column)
+                seen_columns.add(column)
+
+        if available_columns is None:
+            return resolved_columns
+        available_set = set(available_columns)
+        return [column for column in resolved_columns if column in available_set]
 
     @staticmethod
     def default_factor_columns() -> list[str]:
@@ -189,17 +262,4 @@ class FactorEngine:
         Returns:
             list[str]: 默认因子列名列表。
         """
-        return [
-            "ep_ttm",
-            "bp",
-            "roe",
-            "grossprofitmargin",
-            "netprofitmargin",
-            "yoynetprofit",
-            "assetturnover",
-            "cfotoor",
-            "ret_20",
-            "ret_60",
-            "volatility_20",
-            "turnover_20",
-        ]
+        return FactorEngine.resolve_feature_columns()

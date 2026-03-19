@@ -464,6 +464,46 @@ class AkshareClient:
         result["trade_date"] = result["trade_date"].dt.strftime("%Y%m%d")
         return result.sort_values("trade_date").reset_index(drop=True)
 
+    def macro_interest_rate_spread(
+        self,
+        start_date: str,
+        end_date: str,
+    ) -> pd.DataFrame:
+        """获取中美主要国债收益率及利差。
+        使用 bond_zh_us_rate 接口获取中国国债10年-2年利差等信息。
+        """
+        frame = self._with_retry(lambda: self.ak.bond_zh_us_rate())
+        if frame.empty:
+            return pd.DataFrame(columns=["trade_date", "cn_spread_10y_2y"])
+
+        # 列名中可能包含特殊字符，使用位置索引或者容错获取
+        date_col = frame.columns[0]
+        # 正常为 '中国国债收益率10年-2年'
+        cn_spread_col = "中国国债收益率10年-2年"
+        if cn_spread_col not in frame.columns:
+            # 取第5列为 fallback (通常第5列或第6列为利差)
+            for col in frame.columns:
+                if "10年-2年" in col and "中国" in col:
+                    cn_spread_col = col
+                    break
+        
+        if cn_spread_col not in frame.columns:
+            return pd.DataFrame(columns=["trade_date", "cn_spread_10y_2y"])
+
+        result = pd.DataFrame(
+            {
+                "trade_date": pd.to_datetime(frame[date_col], errors="coerce"),
+                "cn_spread_10y_2y": pd.to_numeric(frame[cn_spread_col], errors="coerce"),
+            }
+        )
+        result = result.dropna(subset=["trade_date", "cn_spread_10y_2y"]).copy()
+        result = result[
+            (result["trade_date"] >= pd.to_datetime(start_date))
+            & (result["trade_date"] <= pd.to_datetime(end_date))
+        ]
+        result["trade_date"] = result["trade_date"].dt.strftime("%Y%m%d")
+        return result.sort_values("trade_date").reset_index(drop=True)
+
     def fina_indicator(
         self,
         ts_code: str,

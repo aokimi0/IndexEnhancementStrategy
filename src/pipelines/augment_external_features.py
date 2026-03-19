@@ -43,13 +43,20 @@ def main() -> None:
 
     northbound = data_service.load_northbound_flow(start_date=start_date, end_date=end_date)
     if not northbound.empty and "north_money" not in panel.columns:
+        northbound["trade_date"] = northbound["trade_date"].astype(str)
         panel = panel.merge(northbound, on="trade_date", how="left")
     if "north_money" in panel.columns and "northbound_net_inflow" not in panel.columns:
         panel["northbound_net_inflow"] = pd.to_numeric(panel["north_money"], errors="coerce")
 
     macro_m2 = data_service.load_macro_m2_yoy(start_date=start_date, end_date=end_date)
     if not macro_m2.empty and "m2_yoy" not in panel.columns:
+        macro_m2["trade_date"] = macro_m2["trade_date"].astype(str)
         panel = data_service._merge_macro_series(panel=panel, macro_frame=macro_m2)
+        
+    macro_spread = data_service.load_macro_interest_rate_spread(start_date=start_date, end_date=end_date)
+    if not macro_spread.empty and "cn_spread_10y_2y" not in panel.columns:
+        macro_spread["trade_date"] = macro_spread["trade_date"].astype(str)
+        panel = data_service._merge_macro_series(panel=panel, macro_frame=macro_spread)
 
     output_path = data_service.save_frame(panel, args.output)
     print(f"外部数据增强面板已生成：{output_path}")

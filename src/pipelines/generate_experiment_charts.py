@@ -92,8 +92,75 @@ def main() -> None:
         oos_2015=strict_oos_2015,
         output_path=output_dir / "chart_06_metric_bar_comparison.png",
     )
+    
+    # Generate feature importance chart
+    importance_path = config.data_dir / "processed" / "lightgbm_feature_importance_external_2015_2024.csv"
+    if importance_path.exists():
+        importance = pd.read_csv(importance_path)
+        _plot_feature_importance(
+            importance=importance,
+            output_path=output_dir / "chart_07_feature_importance.png",
+        )
+        
+    # Generate regime analysis chart
+    regime_path = config.data_dir / "processed" / "regime_analysis.csv"
+    if regime_path.exists():
+        regimes = pd.read_csv(regime_path)
+        _plot_regime_analysis(
+            regimes=regimes,
+            output_path=output_dir / "chart_08_regime_analysis.png",
+        )
 
     print(f"图表已生成：{output_dir}")
+
+def _plot_feature_importance(importance: pd.DataFrame, output_path: Path) -> None:
+    """绘制特征重要性条形图。"""
+    fig, ax = plt.subplots(figsize=(10, 6))
+    
+    # 假设特征重要性表中包含 feature 和 importance 列，或者将列名取平均
+    if "feature" in importance.columns and "importance" in importance.columns:
+        mean_imp = importance.groupby("feature")["importance"].mean().sort_values(ascending=True)
+    elif "feature_name" in importance.columns and "importance" in importance.columns:
+        mean_imp = importance.groupby("feature_name")["importance"].mean().sort_values(ascending=True)
+    else:
+        # 如果是按月记录的形式，如 index 为日期，列为特征
+        imp_only = importance.drop(columns=["trade_date", "rebalance_date", "fold"], errors="ignore")
+        # 确保全部为数值类型
+        imp_only = imp_only.select_dtypes(include='number')
+        mean_imp = imp_only.mean().sort_values(ascending=True)
+        
+    mean_imp.tail(15).plot(kind="barh", ax=ax, color="skyblue", edgecolor="black")
+    ax.set_title("Top 15 Feature Importances (Average)")
+    ax.set_xlabel("Importance")
+    ax.set_ylabel("Features")
+    ax.grid(axis="x", alpha=0.3)
+    fig.tight_layout()
+    fig.savefig(output_path, dpi=200)
+    plt.close(fig)
+
+def _plot_regime_analysis(regimes: pd.DataFrame, output_path: Path) -> None:
+    """绘制市场状态分析条形图。"""
+    fig, axes = plt.subplots(2, 1, figsize=(12, 10))
+    
+    # Plot Annual Excess Return by Regime
+    pivot_ret = regimes.pivot(index="regime", columns="strategy", values="annual_excess_return")
+    pivot_ret.plot(kind="bar", ax=axes[0], rot=45)
+    axes[0].set_title("Annual Excess Return by Market Regime")
+    axes[0].set_ylabel("Excess Return")
+    axes[0].grid(axis="y", alpha=0.3)
+    axes[0].set_xlabel("")
+    
+    # Plot Information Ratio by Regime
+    pivot_ir = regimes.pivot(index="regime", columns="strategy", values="information_ratio")
+    pivot_ir.plot(kind="bar", ax=axes[1], rot=45)
+    axes[1].set_title("Information Ratio by Market Regime")
+    axes[1].set_ylabel("Information Ratio")
+    axes[1].grid(axis="y", alpha=0.3)
+    axes[1].set_xlabel("")
+    
+    fig.tight_layout()
+    fig.savefig(output_path, dpi=200)
+    plt.close(fig)
 
 
 def _load_nav(path: Path) -> pd.DataFrame:

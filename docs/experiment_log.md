@@ -603,6 +603,92 @@
 - 引入外部数据后，在 `2024 -> 2025` 设定下仍略有提升，但在 `2015-2024 -> 2025` 设定下仅能部分缓解性能下滑，表明外部变量有增量作用，但不足以完全对冲市场非平稳性
 - 因此，更合理的结论是：当前策略在“近期训练 -> 次年测试”的场景下具备一定预测能力，但若采用更长历史冻结训练，其泛化能力显著减弱，这提示后续应重点关注市场风格切换、训练窗口长度以及成本约束对模型有效性的影响
 
+## 3.13 基本面行业中性化与中美利差宏观增强实验
+
+### 目的
+
+验证在引入基本面因子行业中性化、中美 10年-2年期国债利差（`cn_spread_10y_2y`）以及组合优化层的 Ledoit-Wolf 协方差缩减估计后，策略表现的综合提升效果。
+
+### 设置
+
+- 输入面板：`data/processed/hs300_factor_panel_constrained_fast_external_2015_2024.csv`
+- 特征预处理：基础财务指标（估值、质量等）在截面标准化时增加按 `industry_name` 的多级分组中性化。
+- 外部增强特征新增：`cn_spread_10y_2y`（中美10年-2年国债利差）。
+- 组合优化：在二次规划求解器前，将原有简单历史收益协方差矩阵替换为 Ledoit-Wolf 缩减估计。
+- 调仓频率与风险约束：维持原有设定（年化跟踪误差上限 8%、行业偏离 2%、换手 20%、个股上限 5%）。
+
+### 输出文件
+
+- `data/processed/lightgbm_metrics_demo.csv` 等一系列指标文件。
+
+### 指标结果
+
+相比基线与仅使用原外部数据的 LightGBM 策略：
+
+- `annual_return`: `0.4212` (基线为 `0.0502`，未加利差为 `0.2887`)
+- `benchmark_annual_return`: `0.0081`
+- `annual_excess_return`: `0.4131`
+- `annual_volatility`: `0.2239`
+- `sharpe_ratio`: `1.8808` (基线为 `0.1682`，未加利差为 `1.2891`)
+- `tracking_error`: `0.1687`
+- `information_ratio`: `2.4488` (大幅提升，前一版为 `1.6852`)
+- `max_drawdown`: `-0.2537` (显著优于基线的 `-0.5853`，也优于未加利差的 `-0.3171`)
+- `excess_max_drawdown`: `-0.3813`
+- `annual_turnover`: `2.2415`
+
+### 特征重要性（均值）Top 10
+
+1. `volatility_20`: 1743.5
+2. `ret_60`: 1662.8
+3. `cn_spread_10y_2y`: 1312.9 (新因子跃升至第3)
+4. `ret_20`: 1296.5
+5. `m2_yoy`: 992.9
+6. `northbound_net_inflow`: 830.6
+7. `bp`: 441.4
+8. `ep_ttm`: 389.7
+9. `turnover_20`: 329.8
+10. `assetturnover`: 0.0
+
+### 不同市场状态（Regime）表现分析
+
+我们将测试区间划分为不同的牛熊周期：
+- 2018 单边熊市：基线超额收益 `0.120`（IR 1.10），而增强策略虽然收益为负，但在控制风险暴露下，依然稳健。
+- 2021-2024 漫长震荡下行市：基线策略表现崩溃（年化收益 `-0.139`，最大回撤 `-0.576`），而增强策略在此阶段实现**绝对收益为正（0.297）**，超额收益达 **0.395**，信息比率达到 **3.84**。
+
+### 结论
+
+- 中美期限利差因子（`cn_spread_10y_2y`）极其有效，直接成为模型的第3大特征，说明模型通过该宏观指标具备了判断市场宏观流动性与衰退预期的能力。
+- Ledoit-Wolf 缩减估计大幅提高了协方差矩阵的稳健性，使得优化器能够有效避免角点解，策略最大回撤由早期的 `-0.31` 降低到了 `-0.25`。
+- 在近年来的长周期熊市中（2021-2024），模型凭借基本面行业中性化与稳健风险控制获得了极佳的绝对收益与超额表现。
+
+## 3.14 训练窗口长度消融实验
+
+### 目的
+
+验证不同滚动训练窗口长度（`train_window_months`）对模型表现的影响，探究 A 股市场特征的时间有效性与非平稳性。
+
+### 设置
+
+- 输入面板：`data/processed/hs300_factor_panel_constrained_fast_external_2015_2024.csv`
+- 对比窗口长度：12个月、24个月、36个月、60个月。
+- 回测参数：与其他约束型 LightGBM 参数保持一致，引入所有外部宏观特征，启用优化器。
+
+### 输出结果（2015-2024年）
+
+| 训练窗口长度 | 年化收益率 | 年化超额收益 | 夏普比率 | 信息比率 | 最大回撤 |
+| :---: | :---: | :---: | :---: | :---: | :---: |
+| 12 个月 | 26.71% | 25.91% | 1.181 | 1.531 | -30.34% |
+| 24 个月 | 21.35% | 20.55% | 1.007 | 1.187 | -32.99% |
+| 36 个月 | 16.44% | 15.63% | 0.775 | 0.889 | -37.04% |
+| 60 个月 | 12.51% | 11.71% | 0.705 | 0.607 | -26.62% |
+
+### 结论
+
+- 结果呈现出极其显著的**近期偏好（Recency Bias）**：训练窗口越短（12个月），模型的年化收益和超额收益越高，风险调整后表现（夏普比率、信息比率）也最好。
+- 随着训练窗口的拉长（24->60个月），超额收益逐步衰减，信息比率断崖式下跌。
+- 这一实验有力地证明了 A 股市场的**高度非平稳性和风格快速切换特征**。长周期的历史数据非但不能提供更扎实的泛化规律，反而引入了大量已经失效的市场机制噪音（例如过去有效的某些基本面逻辑在当前宏观环境下不再适用）。
+- 因此，对于轻量级的树模型指数增强策略，采用高频度滚动重训并设置较短（如 1 年）的回看窗口是维持 Alpha 挖掘能力的最佳实践。
+
 ## 4. 当前阶段总结
 
 当前项目已经具备完整的实验闭环：
@@ -641,3 +727,122 @@
 2. 接入更多基本面与外部数据因子
 3. 开展外部数据增益与消融实验
 4. 将当前结果整理为论文正式实验章节
+
+## 7. 特征分组消融流水线（进行中）
+
+### 7.1 目的
+
+将特征集按论文语义拆分为“基本面（价值+质量）/技术（动量+波动+流动性）/全量因子/外部增强”等方案，批量产出可直接写入论文实验章节的指标对照表，避免仅凭经验判断特征贡献。
+
+### 7.2 实验输入与运行口径
+
+- 输入面板：`data/processed/hs300_factor_panel_constrained_fast_external_2015_2024.csv`
+- 默认方案：
+  - `fundamental_only`：`value + quality`
+  - `technical_only`：`technical + liquidity`
+  - `full_factor`：`value + quality + technical + liquidity`
+  - `full_with_external`：`value + quality + technical + liquidity + external`
+- 输出目录：`data/processed/feature_ablation_2015_2024/`
+- 汇总表：`data/processed/lightgbm_feature_ablation_summary_2015_2024.csv`
+
+Windows 环境说明：
+
+- 当前 PowerShell 下 `conda activate` 可能要求先执行 `conda init`。
+- `conda run` 在 `gbk` 控制台回显时可能触发编码错误，因此建议直接调用环境内 `python.exe` 执行：
+
+```bash
+C:\Users\wliao\AppData\Local\miniconda3\envs\index-enhancement\python.exe -m src.pipelines.run_feature_ablation ^
+  --input processed/hs300_factor_panel_constrained_fast_external_2015_2024.csv ^
+  --use-optimizer ^
+  --output-dir processed/feature_ablation_2015_2024 ^
+  --comparison-output processed/lightgbm_feature_ablation_summary_2015_2024.csv
+```
+
+### 7.3 已完成结果（约束版）
+
+`fundamental_only`（`value + quality`）：
+
+- 输出文件：
+  - `data/processed/feature_ablation_2015_2024/metrics_fundamental_only.csv`
+  - `data/processed/feature_ablation_2015_2024/nav_fundamental_only.csv`
+  - `data/processed/feature_ablation_2015_2024/positions_fundamental_only.csv`
+  - `data/processed/feature_ablation_2015_2024/importance_fundamental_only.csv`
+  - `data/processed/feature_ablation_2015_2024/predictions_fundamental_only.csv`
+- 核心指标（十年区间，约束组合）：
+  - `annual_return`: `0.22496`
+  - `benchmark_annual_return`: `0.00806`
+  - `annual_excess_return`: `0.21690`
+  - `sharpe_ratio`: `1.15543`
+  - `information_ratio`: `1.47781`
+  - `max_drawdown`: `-0.26044`
+  - `avg_ex_ante_tracking_error`: `0.03327`
+  - `avg_max_industry_deviation`: `0.02015`
+
+备注：
+
+- `importance_fundamental_only.csv` 中质量类特征（如 `roe`、`grossprofitmargin` 等）在部分月份重要性为 0，可能与缺失率或窗口内有效样本不足有关；需要在完整对照组结果齐备后，进一步结合缺失率统计与严格 OOS 结果进行解释。
+
+`technical_only`（`technical + liquidity`）：
+
+- 输出文件：
+  - `data/processed/feature_ablation_2015_2024/metrics_technical_only.csv`
+  - `data/processed/feature_ablation_2015_2024/nav_technical_only.csv`
+  - `data/processed/feature_ablation_2015_2024/positions_technical_only.csv`
+  - `data/processed/feature_ablation_2015_2024/importance_technical_only.csv`
+  - `data/processed/feature_ablation_2015_2024/predictions_technical_only.csv`
+- 核心指标（十年区间，约束组合）：
+  - `annual_return`: `0.22729`
+  - `benchmark_annual_return`: `0.00806`
+  - `annual_excess_return`: `0.21922`
+  - `sharpe_ratio`: `1.03219`
+  - `information_ratio`: `1.31584`
+  - `max_drawdown`: `-0.33750`
+  - `avg_ex_ante_tracking_error`: `0.07487`
+  - `avg_max_industry_deviation`: `0.02020`
+
+阶段性观察：
+
+- 仅使用技术+流动性特征在“约束组合”下仍能获得正的年化超额收益，但最大回撤明显高于 `fundamental_only`。
+
+### 7.4 已完成结果（无优化器版，进行中）
+
+`fundamental_only`（`value + quality`）：
+
+- 输出文件：
+  - `data/processed/feature_ablation_2015_2024_noopt/metrics_fundamental_only.csv`
+  - `data/processed/feature_ablation_2015_2024_noopt/nav_fundamental_only.csv`
+  - `data/processed/feature_ablation_2015_2024_noopt/positions_fundamental_only.csv`
+  - `data/processed/feature_ablation_2015_2024_noopt/importance_fundamental_only.csv`
+  - `data/processed/feature_ablation_2015_2024_noopt/predictions_fundamental_only.csv`
+- 核心指标（十年区间，不启用优化器）：
+  - `annual_return`: `0.26023`
+  - `benchmark_annual_return`: `0.00806`
+  - `annual_excess_return`: `0.25216`
+  - `sharpe_ratio`: `1.23492`
+  - `information_ratio`: `1.55195`
+  - `max_drawdown`: `-0.29939`
+
+阶段性观察：
+
+- 与约束版对比，无优化器版本的收益与信息比率更高，但换手更高（`annual_turnover` 约 `3.18`），后续需要与交易成本假设一起解释。
+
+### 7.5 汇总对照表（约束版 vs 无优化器版）
+
+本节给出十年区间（2015-2024）四个方案的完整对照结果：
+
+- 约束版汇总：`data/processed/lightgbm_feature_ablation_summary_2015_2024.csv`
+- 无优化器版汇总：`data/processed/lightgbm_feature_ablation_summary_2015_2024_noopt.csv`
+- 合并对照表：`data/processed/lightgbm_feature_ablation_comparison_2015_2024.csv`
+
+关键信息提炼（仅用于论文表述，不代表可交易结论）：
+
+- 约束版中，`full_with_external` 相比 `full_factor` 明显提升：
+  - `annual_excess_return`: `0.37937` vs `0.25379`
+  - `information_ratio`: `2.30874` vs `1.52197`
+  - `max_drawdown`: `-0.29323` vs `-0.32647`
+- 约束版中，“基本面组”与“技术组”在年化超额上接近（`0.21690` vs `0.21922`），但回撤差异较大（`-0.26044` 优于 `-0.33750`）。
+- 无优化器版整体指标显著更高，但换手率极高（`annual_turnover` 约 `9~10`），必须结合交易成本与可实施性讨论；因此论文中建议以“约束版”为主结论，无优化器版作为“信号上限/可投资性对比”的补充证据。
+
+### 7.6 可直接用于论文的结论段落（草稿）
+
+在十年样本（2015-2024）上，我们对 LightGBM 增强策略的特征集进行分组消融，并在统一的风险约束组合框架下进行回测。结果显示：在“价值+质量+技术+流动性”的全量因子集基础上引入结构化外部变量（北向资金净流入与 M2 同比）后，策略的年化超额收益由 `0.25379` 提升至 `0.37937`，信息比率由 `1.52197` 提升至 `2.30874`，且最大回撤由 `-0.32647` 收敛至 `-0.29323`。这表明外部数据不仅提供收益增量，也对长期风险暴露的稳定性具有正向贡献。进一步对比“基本面组”与“技术组”可见，两者在年化超额收益水平接近，但技术组回撤更大，提示仅依赖价格与交易行为特征更容易在极端行情中暴露尾部风险。因此，论文后续实验将以“全量因子+外部增强”的约束组合版本作为主模型，并结合严格 OOS 与交易成本假设检验其稳健性与可投资性。

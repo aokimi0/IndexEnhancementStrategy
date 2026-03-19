@@ -8,6 +8,7 @@ import warnings
 import cvxpy as cp
 import numpy as np
 import pandas as pd
+from sklearn.covariance import LedoitWolf
 
 
 @dataclass(frozen=True)
@@ -173,7 +174,13 @@ class ConstrainedPortfolioOptimizer:
         if len(pivot) < 2:
             return np.eye(len(codes)) * self.config.covariance_ridge
 
-        covariance = pivot.cov().to_numpy(dtype=float)
+        # 使用 Ledoit-Wolf 缩减估计协方差矩阵
+        try:
+            lw = LedoitWolf()
+            covariance = lw.fit(pivot).covariance_
+        except Exception:
+            covariance = pivot.cov().to_numpy(dtype=float)
+            
         covariance = np.nan_to_num(covariance, nan=0.0, posinf=0.0, neginf=0.0)
         covariance = (covariance + covariance.T) / 2.0
         min_eigenvalue = float(np.min(np.linalg.eigvalsh(covariance)))

@@ -21,28 +21,36 @@
 - 保证毕设在个人电脑上可落地
 
 ## 已固定的最小可行研究方案
-
+ 
 - 标的范围：按调仓日可得的沪深300成分股
 - 调仓频率：月度调仓
 - 基准指数：沪深300
 - 目标函数：优先提升年化超额收益和信息比率，同时控制跟踪误差
-- 核心因子：价值、质量、动量、低波动
+- 核心因子：价值、质量、动量、低波动F
 - 主模型：LightGBM
 - 外部数据：北向资金净流入、M2同比增速
 - 组合约束：跟踪误差、行业偏离、个股权重上限、换手率
+
+## 当前已实现能力
+
+当前代码已经支持以下实验链路：
+
+1. `akshare + baostock` 十年级研究面板构建
+2. 多因子基线与约束型基线回测
+3. `LightGBM` 滚动训练、冻结训练和严格 OOS 测试
+4. 外部数据增强与约束消融实验
+5. 按因子分组批量运行特征消融实验
 
 ## 仓库结构
 
 ```text
 IndexEnhancementStrategy/
-├─ docs/                  # 研究范围、MVP定义、实验方案
 ├─ data/                  # 本地数据缓存和中间结果
+├─ docs/                  # 研究范围、MVP定义、实验方案
 ├─ logs/                  # 训练与实验日志
-├─ notebooks/             # 探索性分析与可视化
-├─ reports/               # 图表和论文阶段性产出
-├─ src/                   # 后续策略实现代码
-├─ requirement.md         # 题目要求，不可更改
-├─ doc.md                 # 初始思路记录
+├─ paper/                 # 毕业论文 LaTeX 源码与图表
+├─ reference/             # 参考文献与毕业设计规范要求等资料
+├─ src/                   # 策略实现代码
 └─ README.md
 ```
 
@@ -54,14 +62,12 @@ IndexEnhancementStrategy/
 - `docs/references.md`：外部参考实现与模块映射
 - `docs/experiment_log.md`：当前阶段实验记录与结果汇总
 
-## 后续实现顺序
+## 当前建议推进顺序
 
-1. 准备数据接口与成分股样本
-2. 完成因子计算与标签构造
-3. 先跑通多因子基线回测
-4. 接入 LightGBM 预测超额收益
-5. 加入带约束组合优化
-6. 最后引入外部数据并完成消融实验
+1. 继续补充基本面与外部数据因子
+2. 基于分组消融与严格 OOS 结果筛选稳健特征集
+3. 优化约束型组合构建与风险模型稳定性
+4. 将现有结果沉淀为论文实验章节与图表
 
 ## 当前可运行入口
 
@@ -74,6 +80,30 @@ python -m src.pipelines.build_factor_panel --start-date 20180101 --end-date 2024
 ```
 
 运行后会在 `data/processed/` 下生成第一版研究因子面板。
+
+约束型 `LightGBM` 实验示例：
+
+```bash
+python -m src.pipelines.run_lightgbm_experiment \
+  --input processed/hs300_factor_panel_constrained_fast_external_2015_2024.csv \
+  --use-optimizer \
+  --feature-groups value,quality,technical,liquidity,external \
+  --prediction-output processed/lightgbm_predictions_demo.csv \
+  --importance-output processed/lightgbm_importance_demo.csv \
+  --nav-output processed/lightgbm_nav_demo.csv \
+  --positions-output processed/lightgbm_positions_demo.csv \
+  --metrics-output processed/lightgbm_metrics_demo.csv
+```
+
+特征分组消融实验示例：
+
+```bash
+python -m src.pipelines.run_feature_ablation \
+  --input processed/hs300_factor_panel_constrained_fast_external_2015_2024.csv \
+  --use-optimizer \
+  --output-dir processed/feature_ablation_demo \
+  --comparison-output processed/lightgbm_feature_ablation_demo.csv
+```
 
 ## 约定
 

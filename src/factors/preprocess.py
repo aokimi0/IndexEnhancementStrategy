@@ -37,22 +37,23 @@ def winsorize_by_mad(
 def zscore_by_group(
     frame: pd.DataFrame,
     columns: list[str],
-    group_col: str = "trade_date",
+    group_col: str | list[str] = "trade_date",
 ) -> pd.DataFrame:
     """按截面做 Z-Score 标准化。
 
     Args:
         frame: 输入数据表。
         columns: 需要处理的列名。
-        group_col: 分组列，默认按交易日处理。
+        group_col: 分组列，默认按交易日处理。支持传入列表实现多级分组（如交易日+行业）。
 
     Returns:
         pd.DataFrame: 标准化后的数据表副本。
     """
     result = frame.copy()
     for column in columns:
-        mean = result.groupby(group_col)[column].transform("mean")
-        std = result.groupby(group_col)[column].transform("std")
+        grouped = result.groupby(group_col)[column]
+        mean = grouped.transform("mean")
+        std = grouped.transform("std")
         std = std.replace(0, np.nan)
         result[column] = (result[column] - mean) / std
     return result
