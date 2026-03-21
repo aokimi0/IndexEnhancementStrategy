@@ -1,1 +1,1 @@
-./docs/index.md
+用法参考manual-template.tex
