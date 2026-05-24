@@ -4,25 +4,7 @@
 \begin{zhaiyao}
 \begin{spacing}{1.5}
 {
-
-此模板最初按照南开大学计算机/网络空间安全学院本科生毕业设计要求制作整理。我们希望此模板能够帮助更多的同学。本模板会根据同学们的需求进行更新。最新版本请关注本模版主页：\href{https://tr0py.github.io/NKU-thesis-template-2020/}{NKThesis: 南开大学本科生毕业论文模板}。
-
-如果遇到使用问题，你可以用以下方式求助：
-\begin{itemize}
-	\item 在\href{https://github.com/Tr0py/NKU-thesis-template-2020/discussions}{GitHub讨论区}询问你不懂的地方。
-	\item 在\href{https://github.com/Tr0py/NKU-thesis-template-2020/issues}{GitHub Issue}中提出你遇到的待修复的问题。
-	\item 如果不会使用GitHub，你可以在QQ群中提问：群号469868290。
-\end{itemize}
-
-	
-感谢历届的贡献者们：
-\begin{itemize}
-    \item 费迪，22届本科毕业生，\url{fd@nbjl.nankai.edu.cn}
-    \item 林雪，22届本科毕业生，\url{ylsnowy@gmail.com}
-    \item 黎鸿儒，22届本科毕业生，\url{lihongru@mail.nankai.edu.cn}
-    \item 潘宇，20届本科毕业生，\url{panyu@nbjl.nankai.edu.cn}，\href{https://nbjl.nankai.edu.cn/2019/0513/c19244a264683/page.htm}{主页}
-    \item 赵子懿，20届本科毕业生，\url{troppingz@gmail.com}，\href{https://tr0py.github.io/}{主页}
-\end{itemize}
+本文以沪深 300 指数增强为应用场景，针对传统量化策略\emph{计算耗时长、因子来源单一、不确定性量化缺失}三类核心问题，提出并实证了一套以\emph{算法创新}与\emph{工程加速}为核心的指数增强框架。具体四项创新：(1) 设计了基于 Claude Opus 4.7 的中文财经舆情情感因子管线，通过结构化 prompt、SHA-256 缓存与硬性预算守门，将大语言模型从昂贵的离线服务转化为可控成本的日频 alpha 来源，单条新闻打分实测成本 $5.2\times 10^{-4}$ 美元；(2) 实现了 LightGBM、XGBoost、轻量 GRU 与 Ridge 异构 L1 模型 + MLP 元学习器的 Stacking 集成框架，所有模型参数量在百万级以内、全程 CPU 友好；(3) 将 Split / Mondrian Conformal Prediction 与本土化二次规划组合优化器耦合，提出三种置信加权方案，实测覆盖率与理论 90\% 的偏差约 9 个百分点，并揭示了 A 股低信噪比环境下"高置信度即过拟合"的反向规律；(4) 将回测核心循环改写为 Numba JIT 编译，并以 joblib 并行化消融实验，实测十年沪深 300 面板上回测加速 9.84$\times$、数值偏差小于 $10^{-15}$。本文系统对照了 2025-2026 年同主题前沿工作（StockBench、QuantAgent、MIGA、Diffusion Factor Model、Temporal CP 等），并明确定位本研究为"覆盖广度与工程可复现性优先"的开放实现。完整实验在沪深 300 成分股上验证：约束型 LightGBM 基线信息比率（IR）由静态多因子的 0.237 提升至 2.449，最大回撤由 -58.53\% 收敛至 -25.37\%。本研究的代码、数据面板与实验结果均已开源至 GitHub 仓库：\url{https://github.com/aokimi0/IndexEnhancementStrategy}。
 }
 
 \end{spacing}
@@ -32,19 +14,18 @@
 
 
 \begin{guanjianci}
-南开大学；毕业论文；模板
+指数增强；量化投资；大语言模型；Stacking 集成；Conformal Prediction；Numba JIT；舆情因子
 \end{guanjianci}
 
 
 
 \begin{abstract}
 \begin{spacing}{1.5}
-Since 1998, two independent supernova research groups have discovered that the universe is accelerating, and the dark energy has become a hot topic in cosmology. 
-
+This paper proposes and empirically validates an index enhancement framework for the CSI 300 index, targeting three core problems of traditional quantitative strategies: long computation time, monotonous factor sources, and lack of uncertainty quantification. The framework centers on \emph{algorithmic innovation} and \emph{engineering acceleration} with four key contributions: (1) A Chinese financial sentiment factor pipeline based on Claude Opus 4.7 is designed, which transforms expensive offline LLM services into a controllable-cost daily alpha source through structured prompts, SHA-256 caching, and hard budget gating, with a measured cost of $5.2\times 10^{-4}$ USD per news item; (2) A Stacking ensemble framework integrating heterogeneous L1 models (LightGBM, XGBoost, lightweight GRU, Ridge) with an MLP meta-learner is implemented, where all models stay within million-level parameters and remain CPU-friendly throughout; (3) Split / Mondrian Conformal Prediction is coupled with a localized quadratic-programming portfolio optimizer, with three confidence-weighting schemes proposed; the measured empirical coverage deviates from the theoretical 90\% by about 9 percentage points, and reveals an inverse pattern of ``higher confidence implies over-fitting'' in the low signal-to-noise A-share market; (4) The backtest engine's daily loop is rewritten with Numba JIT and parallelized via joblib for ablation experiments, achieving a 9.84$\times$ speedup on the ten-year CSI 300 panel with numerical deviation below $10^{-15}$. This paper systematically positions itself against 2025-2026 frontier work (StockBench, QuantAgent, MIGA, Diffusion Factor Models, Temporal CP, etc.) and explicitly emphasizes ``coverage breadth and engineering reproducibility'' over single-direction SOTA. Comprehensive experiments on CSI 300 constituents show that the constrained LightGBM baseline lifts the information ratio (IR) from 0.237 (static multi-factor) to 2.449, with maximum drawdown shrinking from -58.53\% to -25.37\%. The code, data panels, and experimental results are open-sourced at the GitHub repository: \url{https://github.com/aokimi0/IndexEnhancementStrategy}.
 \end{spacing}
 \end{abstract}
 
 
 \begin{keywords}
-dark energy model; dynamic analysis
-\end{keywords} 
+Index Enhancement; Quantitative Investment; Large Language Model; Stacking Ensemble; Conformal Prediction; Numba JIT; Sentiment Factor
+\end{keywords}

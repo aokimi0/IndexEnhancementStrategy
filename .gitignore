@@ -7,6 +7,10 @@
 __pycache__/
 *.py[cod]
 
+# macOS
+.DS_Store
+*.DS_Store
+
 # 环境变量与本地虚拟环境
 .env
 .venv/

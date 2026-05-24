@@ -8,6 +8,7 @@ import numpy as np
 import pandas as pd
 
 from src.backtest.metrics import compute_performance_metrics
+from src.backtest.numba_kernels import compute_nav_loop
 from src.factors.engine import FactorEngine
 from src.portfolio import ConstrainedPortfolioOptimizer, OptimizationConfig
 
@@ -42,6 +43,7 @@ class BaselineBacktestEngine:
         score_column: str = "score",
         fee_rate: float = 0.001,
         slippage_rate: float = 0.001,
+        use_numba: bool = True,
     ) -> None:
         """初始化回测参数。
 
@@ -54,6 +56,9 @@ class BaselineBacktestEngine:
             score_column: 用于选股或优化的信号列。
             fee_rate: 单边手续费率。
             slippage_rate: 单边滑点率。
+            use_numba: 是否启用 Numba JIT 加速的矩阵化 NAV 累乘路径。设为
+                ``False`` 时退化为逐日 Python 循环，便于在对照实验或调试时
+                重现原始实现。
         """
         self.top_n = top_n
         self.rebalance_frequency = rebalance_frequency
@@ -62,6 +67,7 @@ class BaselineBacktestEngine:
         self.score_column = score_column
         self.fee_rate = fee_rate
         self.slippage_rate = slippage_rate
+        self.use_numba = use_numba
         self.optimizer = (
             ConstrainedPortfolioOptimizer(config=optimization_config)
             if use_optimizer
@@ -261,7 +267,212 @@ class BaselineBacktestEngine:
         frame: pd.DataFrame,
         positions: pd.DataFrame,
     ) -> pd.DataFrame:
-        """根据持仓表生成组合净值。"""
+        """根据持仓表生成组合净值。
+
+        Args:
+            frame: 已排好序的因子面板，至少包含 ``trade_date``、``ts_code``、
+                ``daily_return``、``benchmark_daily_return`` 列。
+            positions: 调仓持仓表，列含 ``rebalance_date``、``ts_code``、
+                ``weight``、``turnover``。
+
+        Returns:
+            pd.DataFrame: 日频 NAV 表，列顺序与原 Python 实现一致，包含
+            ``trade_date``、``portfolio_return``、``gross_portfolio_return``、
+            ``benchmark_return``、``excess_return``、``transaction_cost``、
+            ``portfolio_nav``、``benchmark_nav``、``excess_nav``。
+        """
+        if self.use_numba:
+            return self._build_nav_numba(frame=frame, positions=positions)
+        return self._build_nav_python(frame=frame, positions=positions)
+
+    def _build_nav_numba(
+        self,
+        frame: pd.DataFrame,
+        positions: pd.DataFrame,
+    ) -> pd.DataFrame:
+        """矩阵化路径：把按日循环转为 NumPy 矩阵并调用 Numba 核函数。
+
+        Args:
+            frame: 因子面板。
+            positions: 持仓表。
+
+        Returns:
+            pd.DataFrame: 与 :meth:`_build_nav_python` 列结构完全一致的 NAV 表。
+        """
+        trade_dates = sorted(frame["trade_date"].drop_duplicates().tolist())
+        n_days = len(trade_dates)
+        if n_days == 0:
+            return pd.DataFrame(
+                columns=[
+                    "trade_date",
+                    "portfolio_return",
+                    "gross_portfolio_return",
+                    "benchmark_return",
+                    "excess_return",
+                    "transaction_cost",
+                    "portfolio_nav",
+                    "benchmark_nav",
+                    "excess_nav",
+                ]
+            )
+
+        benchmark_returns_arr = self._build_benchmark_returns(frame, trade_dates)
+        daily_returns_matrix, weights_matrix, rebalance_mask, turnovers = (
+            self._build_matrices(
+                frame=frame,
+                positions=positions,
+                trade_dates=trade_dates,
+            )
+        )
+
+        (
+            portfolio_nav_arr,
+            benchmark_nav_arr,
+            portfolio_return_arr,
+            benchmark_return_arr,
+            excess_return_arr,
+            transaction_cost_arr,
+        ) = compute_nav_loop(
+            daily_returns_matrix=daily_returns_matrix,
+            weights_matrix=weights_matrix,
+            benchmark_returns=benchmark_returns_arr,
+            rebalance_mask=rebalance_mask,
+            turnovers=turnovers,
+            fee_rate=self.fee_rate,
+            slippage_rate=self.slippage_rate,
+            use_numba=True,
+        )
+
+        gross_portfolio_return_arr = np.sum(
+            weights_matrix * daily_returns_matrix, axis=1
+        )
+        safe_benchmark_nav = np.where(benchmark_nav_arr != 0.0, benchmark_nav_arr, np.nan)
+        excess_nav_arr = portfolio_nav_arr / safe_benchmark_nav
+
+        return pd.DataFrame(
+            {
+                "trade_date": trade_dates,
+                "portfolio_return": portfolio_return_arr,
+                "gross_portfolio_return": gross_portfolio_return_arr,
+                "benchmark_return": benchmark_return_arr,
+                "excess_return": excess_return_arr,
+                "transaction_cost": transaction_cost_arr,
+                "portfolio_nav": portfolio_nav_arr,
+                "benchmark_nav": benchmark_nav_arr,
+                "excess_nav": excess_nav_arr,
+            }
+        )
+
+    @staticmethod
+    def _build_benchmark_returns(
+        frame: pd.DataFrame,
+        trade_dates: list[pd.Timestamp],
+    ) -> np.ndarray:
+        """构造与 ``trade_dates`` 对齐的基准日收益数组。"""
+        benchmark = (
+            frame[["trade_date", "benchmark_daily_return"]]
+            .drop_duplicates(subset=["trade_date"])
+            .sort_values("trade_date")
+        )
+        if "benchmark_daily_return" in benchmark.columns:
+            benchmark_series = pd.to_numeric(
+                benchmark["benchmark_daily_return"], errors="coerce"
+            ).fillna(0.0)
+        else:
+            grouped_mean = frame.groupby("trade_date")["daily_return"].mean()
+            benchmark_series = benchmark["trade_date"].map(grouped_mean).fillna(0.0)
+        benchmark_map = dict(zip(benchmark["trade_date"], benchmark_series))
+        return np.asarray(
+            [float(benchmark_map.get(td, 0.0)) for td in trade_dates],
+            dtype=np.float64,
+        )
+
+    def _build_matrices(
+        self,
+        frame: pd.DataFrame,
+        positions: pd.DataFrame,
+        trade_dates: list[pd.Timestamp],
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+        """构造 NAV 核函数所需的日 × 股票矩阵与调仓信息。
+
+        Args:
+            frame: 因子面板。
+            positions: 持仓表。
+            trade_dates: 排序后的交易日列表。
+
+        Returns:
+            tuple: ``(daily_returns_matrix, weights_matrix, rebalance_mask, turnovers)``。
+        """
+        n_days = len(trade_dates)
+        if positions.empty:
+            daily_returns_matrix = np.zeros((n_days, 0), dtype=np.float64)
+            weights_matrix = np.zeros((n_days, 0), dtype=np.float64)
+            rebalance_mask = np.zeros(n_days, dtype=np.bool_)
+            turnovers = np.zeros(n_days, dtype=np.float64)
+            return daily_returns_matrix, weights_matrix, rebalance_mask, turnovers
+
+        all_codes = sorted(positions["ts_code"].drop_duplicates().tolist())
+        code_to_idx = {code: j for j, code in enumerate(all_codes)}
+        n_stocks = len(all_codes)
+
+        sub_frame = frame[frame["ts_code"].isin(all_codes)][
+            ["trade_date", "ts_code", "daily_return"]
+        ].copy()
+        sub_frame["daily_return"] = pd.to_numeric(
+            sub_frame["daily_return"], errors="coerce"
+        ).fillna(0.0)
+        pivot = (
+            sub_frame.pivot_table(
+                index="trade_date",
+                columns="ts_code",
+                values="daily_return",
+                aggfunc="first",
+            )
+            .reindex(index=trade_dates, columns=all_codes)
+            .fillna(0.0)
+        )
+        daily_returns_matrix = pivot.to_numpy(dtype=np.float64, copy=True)
+
+        weights_matrix = np.zeros((n_days, n_stocks), dtype=np.float64)
+        rebalance_mask = np.zeros(n_days, dtype=np.bool_)
+        turnovers = np.zeros(n_days, dtype=np.float64)
+
+        rebalance_groups: dict[pd.Timestamp, pd.DataFrame] = {
+            rebalance_date: group
+            for rebalance_date, group in positions.groupby("rebalance_date", sort=True)
+        }
+
+        current_weights = np.zeros(n_stocks, dtype=np.float64)
+        for i, trade_date in enumerate(trade_dates):
+            weights_matrix[i] = current_weights
+            group = rebalance_groups.get(trade_date)
+            if group is None:
+                continue
+            rebalance_mask[i] = True
+            turnovers[i] = float(group["turnover"].iloc[0])
+            new_weights = np.zeros(n_stocks, dtype=np.float64)
+            for ts_code, weight in zip(group["ts_code"], group["weight"], strict=False):
+                j = code_to_idx.get(ts_code)
+                if j is not None:
+                    new_weights[j] = float(weight)
+            current_weights = new_weights
+
+        return daily_returns_matrix, weights_matrix, rebalance_mask, turnovers
+
+    def _build_nav_python(
+        self,
+        frame: pd.DataFrame,
+        positions: pd.DataFrame,
+    ) -> pd.DataFrame:
+        """原始按日 Python 循环路径，作为对照实现保留。
+
+        Args:
+            frame: 因子面板。
+            positions: 持仓表。
+
+        Returns:
+            pd.DataFrame: 与 :meth:`_build_nav_numba` 列结构一致的 NAV 表。
+        """
         trade_dates = sorted(frame["trade_date"].drop_duplicates().tolist())
         benchmark = (
             frame[["trade_date", "benchmark_daily_return"]]
