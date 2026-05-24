@@ -17,23 +17,21 @@
 
 \section{本文研究贡献}
 \label{sec:contributions}
-针对沪深 300 指数增强场景，本文以\emph{算法创新}与\emph{工程加速}为核心，将大语言模型、集成学习、统计学习与高性能计算等计算机科学方向的前沿方法系统性地嵌入经典 Smart Beta 策略框架，具体贡献包括：
+针对沪深 300 指数增强场景，本文以算法创新与工程加速为双重抓手，将大语言模型、集成学习、统计学习与高性能计算等计算机科学方向的前沿方法系统性地嵌入经典 Smart Beta 策略框架。
 
-\begin{enumerate}
-    \item \textbf{C1：基于 Claude Opus 4.7 的中文舆情情感因子}。设计了一条 LLM-as-a-Service 管线（SHA-256 缓存 + 硬性预算守门 + 双通道路由），将 LLM 从昂贵研究工具转为可控成本的日频 alpha 来源；实测单条新闻打分 $5.2\times 10^{-4}$ USD，与传统价值/质量/动量因子语义互补\cite{Tetlock2007Sentiment,Yang2023FinGPT,Wu2023BloombergGPT}（详见 §\ref{sec:sentiment_results}）。
+在语义信号层，本文设计了一条围绕 Claude Opus 4.7 的 LLM-as-a-Service 管线：以 SHA-256 缓存避免重复打分、以预算上限守门防止成本失控，并通过 Haiku/Opus 双通道按任务难度路由模型选择，将原本昂贵的研究型大模型转化为可控成本的日频 alpha 信号来源。实测单条新闻打分仅需 $5.2\times 10^{-4}$ USD，输出的舆情因子在语义维度上与传统价值、质量、动量因子互补\cite{Tetlock2007Sentiment,Yang2023FinGPT,Wu2023BloombergGPT}，详见第 \ref{sec:sentiment_results} 节。
 
-    \item \textbf{C2：异构轻量多模型 Stacking 集成}。在 LightGBM\cite{Ke2017LightGBM} 基础上同步引入 XGBoost\cite{Chen2016XGBoost}、轻量 GRU\cite{Cho2014GRU} 与 Ridge 等异构 L1 模型，通过 OOF KFold + MLP 元学习器自适应融合\cite{Wolpert1992}；全部参数量 $\le$ 百万级、CPU 友好；带约束情境下 IR 5.92 小幅但稳定击败单 LightGBM IR 5.84（详见 §\ref{sec:final_comparison}）。
+在模型集成层，本文在 LightGBM\cite{Ke2017LightGBM} 主回归器之外同步引入 XGBoost\cite{Chen2016XGBoost}、轻量 GRU\cite{Cho2014GRU} 与 Ridge 三个异构 L1 模型，通过 KFold 折外预测构造元特征矩阵，再由 MLP 元学习器自适应融合\cite{Wolpert1992}。整个集成框架全部参数控制在百万级以内，训练与推理均可在 CPU 上完成；在带约束的真实回测中信息比率达到 5.92，稳定地小幅领先单 LightGBM 的 5.84（第 \ref{sec:final_comparison} 节）。
 
-    \item \textbf{C3：Conformal Prediction 不确定性量化与置信加权 QP}。将 Split / Mondrian CP\cite{Vovk2005Conformal,Romano2019CQR,Angelopoulos2021Gentle} 与本土化二次规划组合优化器耦合，提出三种置信加权方案；实测覆盖率与理论 90\% 偏差恒定 -9 pp（与 $\alpha$ 取值无关），并揭示 A 股低信噪比下 ``高置信即过拟合'' 的反向规律（详见 §\ref{sec:conformal_results} 与 §\ref{subsec:alpha_sensitivity}）。
+在不确定性量化层，本文将 Split 与 Mondrian Conformal Prediction\cite{Vovk2005Conformal,Romano2019CQR,Angelopoulos2021Gentle} 与本土化二次规划组合优化器耦合，提出三种置信加权方案，把每只股票的预测可信度直接传导到 QP 的目标项或可行域中。实测覆盖率与理论 90\% 之间的偏差在不同显著性水平下稳定保持在 -9 个百分点左右，并意外地揭示出 A 股低信噪比环境中 ``高置信即过拟合'' 的反向规律（第 \ref{sec:conformal_results} 与第 \ref{subsec:alpha_sensitivity} 节）。
 
-    \item \textbf{C4：Numba JIT + joblib 并行的高性能回测引擎}。将按日 Python 循环重写为 Numba\cite{Lam2015Numba} JIT 编译的 NAV 累乘核 + joblib 并行的消融框架；Kernel 级加速 130-310$\times$、Engine 级加速 9.84$\times$、数值偏差 $< 10^{-15}$（详见 §\ref{subsec:c4_kernel_vs_engine}），直接呼应课题书所提 ``传统策略计算量大、优化过程耗时长'' 的核心痛点。
-\end{enumerate}
+在工程加速层，本文将按日 Python 循环重写为 Numba\cite{Lam2015Numba} JIT 编译的 NAV 累乘核，并以 joblib 并行驱动消融实验。Kernel 级加速比稳定在 130--310$\times$，端到端 Engine 级加速比 9.84$\times$，数值偏差始终低于 $10^{-15}$（第 \ref{subsec:c4_kernel_vs_engine} 节）。这一加速直接回应了课题书所指出的``传统策略计算量大、优化过程耗时长''核心痛点。
 
 
 
 \section{本文组织结构}
 \label{sec:thesis_structure}
-本文共分六章。第 \ref{sec:contributions} 节（即本章）介绍研究背景、A 股市场非有效性特征与本文四项贡献；第二章梳理主动管理基本定律、机器学习资产定价、Conformal Prediction 与 2025-2026 前沿工作的文献综述；第三章给出 Smart Beta 策略重构与核心因子设计；第四章详述模型选型与组合优化框架，并按 C1（LLM 舆情）/ C2（Stacking 集成）/ C3（Conformal Prediction）/ C4（Numba 加速）四个子节展开新增模块的算法设计，章末给出创新点与代码模块的对应关系；第五章给出长周期（2015-2024）与短周期（2024-2025）的完整实证研究，含五策略最终对比、严格 OOS 验证、覆盖率敏感性、ACI 简化模拟与 Kernel 级加速比 surface 等共 11 个实验子节；第六章总结主要结论、学科贡献与未来工作路线图，章末给出实验复现指南附录。
+本文共分六章。第 \ref{sec:contributions} 节介绍研究背景、A 股市场非有效性特征与本文四项主要贡献。第二章系统梳理主动管理基本定律、机器学习资产定价、Conformal Prediction 与 2025-2026 年前沿工作的文献。第三章给出 Smart Beta 策略重构与核心因子的设计。第四章详述模型选型与组合优化框架，依次展开舆情情感因子、Stacking 集成、Conformal Prediction 置信加权以及 Numba 加速回测引擎四个新增模块的算法设计，并在章末给出与代码模块的对应关系。第五章在长周期（2015-2024）与短周期（2024-2025）两条样本上完成完整的实证研究，含五策略最终对比、严格 OOS 验证、覆盖率敏感性、ACI 简化模拟与 Kernel 级加速比 surface 等共 11 个实验子节。第六章总结主要结论、学科贡献与未来工作路线图，并给出实验复现指南。
 
 
 
@@ -92,34 +90,34 @@ Gu 等\cite{Gu2020} 的开创性文献对机器学习在实证资产定价中的
 在组合优化中，直接使用历史收益计算的样本协方差矩阵往往呈病态特性，易导致优化器产生极端的``角点解''，被 Michaud\cite{Michaud1989} 称为``误差最大化''（Error-Maximization）。Ledoit 与 Wolf\cite{Ledoit2004} 提出的线性收缩估计法（Shrinkage Estimator），通过将高方差的样本协方差矩阵向结构化目标矩阵加权收缩，可有效平滑极值系数并降低实现的跟踪误差。
 
 \section{大语言模型在金融文本理解中的兴起}
-Tetlock\cite{Tetlock2007Sentiment} 较早通过词典法系统量化了媒体语调对美股收益与成交量的预测作用，奠定了文本情感作为另类 alpha 源的实证基础。深度学习时代后，FinBERT、FinGPT\cite{Yang2023FinGPT} 与 BloombergGPT\cite{Wu2023BloombergGPT} 等基于金融语料持续预训练的判别/生成模型相继涌现，但训练与部署成本对中小研究团队构成门槛。近期 Claude\cite{Anthropic2026Opus47} 等闭源大模型以 API 形式提供强语义理解能力，催生了 \emph{LLM-as-a-Service} 范式，使研究者得以通过结构化 prompt 直接获取细粒度极性、强度与主题标签。Lopez-Lira 与 Tang\cite{LopezLira2024ChatGPT} 较早实证 ChatGPT 通过新闻头条即可形成超越简单时序模型的收益预测能力；Lan 等\cite{Lan2025FinChinaSA} 进一步证明大模型在中文细粒度财经情感分析任务上显著超越传统词典与 BERT 类模型；Open-FinLLMs\cite{Huang2024OpenFinLLMs} 则开源了多模态金融 LLM，提供本地化部署可能性。本文 C1 舆情因子管线直接采纳该范式。
+Tetlock\cite{Tetlock2007Sentiment} 较早通过词典法系统量化了媒体语调对美股收益与成交量的预测作用，奠定了文本情感作为另类 alpha 源的实证基础。深度学习时代后，FinBERT、FinGPT\cite{Yang2023FinGPT} 与 BloombergGPT\cite{Wu2023BloombergGPT} 等基于金融语料持续预训练的判别/生成模型相继涌现，但训练与部署成本对中小研究团队构成门槛。近期 Claude\cite{Anthropic2026Opus47} 等闭源大模型以 API 形式提供强语义理解能力，催生了 \emph{LLM-as-a-Service} 范式，使研究者得以通过结构化 prompt 直接获取细粒度极性、强度与主题标签。Lopez-Lira 与 Tang\cite{LopezLira2024ChatGPT} 较早实证 ChatGPT 通过新闻头条即可形成超越简单时序模型的收益预测能力；Lan 等\cite{Lan2025FinChinaSA} 进一步证明大模型在中文细粒度财经情感分析任务上显著超越传统词典与 BERT 类模型；Open-FinLLMs\cite{Huang2024OpenFinLLMs} 则开源了多模态金融 LLM，提供本地化部署可能性。本文的舆情因子管线即在此范式下落地。
 
 \section{Stacking 集成与异构模型融合}
 Wolpert\cite{Wolpert1992} 提出的 Stacked Generalization 是异构模型融合的奠基性工作，其核心思想是用一个元学习器在多个基学习器的输出之上学习最优组合方式，相较简单平均或投票更具数据驱动的自适应性。López de Prado\cite{Lopez2018Stacking} 进一步指出金融机器学习因样本依赖、非平稳与低信噪比等特殊性，更依赖异构集成以缓解单一模型在不同 regime 下的鲁棒性不足。Mekelburg 与 Strauss\cite{Mekelburg2024Pooling}（JEF 2024）从实证角度证实，pooling 与 winsorizing 机器学习预测可显著改善高维收益预测的稳健性。现代实践中通常以树模型（LightGBM\cite{Ke2017LightGBM}、XGBoost\cite{Chen2016XGBoost}）、序列模型（GRU\cite{Cho2014GRU}）与线性模型（Ridge）构成异构 L1 模型族，并配合 KFold OOF 训练规避标签泄漏，再由 MLP 或线性元学习器输出最终预测。
 
 \section{Conformal Prediction 与不确定性量化}
-Vovk 等\cite{Vovk2005Conformal} 提出的 Conformal Prediction (CP) 框架在仅假设可交换性（exchangeability）的弱条件下，即可为任意点预测构造具有有限样本边际覆盖率保证的预测区间。Romano 等\cite{Romano2019CQR} 提出的 Conformalized Quantile Regression (CQR) 进一步借助分位数回归改善条件覆盖率，在异方差与重尾场景下显著优于经典 Split CP。Angelopoulos 与 Bates\cite{Angelopoulos2021Gentle} 系统梳理了 CP 在分类与回归任务上的实践范式。然而金融时序场景下可交换性假设受截面相关性与时间漂移所破坏，A 股低信噪比环境会放大覆盖偏差，CP 的工程化落地仍是较新的研究方向。Kato\cite{Kato2024CPPS} 进一步将 CP 直接嵌入组合选择，提出 Conformal Predictive Portfolio Selection 范式，与本文 C3 高度相关。
+Vovk 等\cite{Vovk2005Conformal} 提出的 Conformal Prediction (CP) 框架在仅假设可交换性（exchangeability）的弱条件下，即可为任意点预测构造具有有限样本边际覆盖率保证的预测区间。Romano 等\cite{Romano2019CQR} 提出的 Conformalized Quantile Regression (CQR) 进一步借助分位数回归改善条件覆盖率，在异方差与重尾场景下显著优于经典 Split CP。Angelopoulos 与 Bates\cite{Angelopoulos2021Gentle} 系统梳理了 CP 在分类与回归任务上的实践范式。然而金融时序场景下可交换性假设受截面相关性与时间漂移所破坏，A 股低信噪比环境会放大覆盖偏差，CP 的工程化落地仍是较新的研究方向。Kato\cite{Kato2024CPPS} 进一步将 CP 直接嵌入组合选择，提出 Conformal Predictive Portfolio Selection 范式，与本文的不确定性量化设计高度相关。
 
 \section{高性能数值计算与回测加速}
 Lam 等\cite{Lam2015Numba} 提出的 Numba 借助 LLVM 将 Python 数值代码即时编译为机器码，使解释型语言获得接近 C/Fortran 的执行性能。量化回测中按日循环、滚动窗口与组合再平衡步骤的向量化收益有限，纯 Python 实现难以同时兼顾可读性与吞吐率；而依赖 GPU 的方案对资源受限场景并不友好。joblib 与 Dask 则提供了进程级与跨节点的任务并行化能力。本文将 Numba JIT 与 joblib 并行结合，旨在为单机 CPU 环境下的量化回测引擎给出一条可复用的工程范式。
 
 \section{2026 前沿对照：LLM Agent、MoE、扩散模型与自适应 CP}
 \label{sec:2026_sota}
-作为定位本文创新点的参照系，本节梳理 2025-2026 年同主题的代表性前沿工作，明确本文在工程可复现性与算法新颖性之间的折衷。
+作为定位本文创新点的参照系，本节梳理 2025-2026 年同主题的代表性前沿工作，明确本文在工程可复现性与算法新颖性之间的折中。
 
-\textbf{LLM Agent 与多智能体交易范式}：FinMem\cite{Yu2024FinMem} 在 LLM trading agent 中加入分层记忆与角色画像设计；AlphaAgent\cite{Tang2025AlphaAgent}（KDD 2025）用 LLM 驱动正则化 alpha 挖掘以对抗 alpha decay；StockBench\cite{Wang2026StockBench} 提出沾染洁净（contamination-free）的多月度真实交易评测协议，对 GPT-5 / Claude-4 等前沿 LLM 作为自主交易 agent 进行评估，发现多数 agent 仍难稳定击败 buy-and-hold 基线；QuantAgent\cite{Li2025QuantAgent} 进一步设计了价格驱动的多智能体 LLM 高频交易框架，在跨资产 1H/4H K 线上取得最高 80\% 方向预测准确率；Karim 等\cite{Karim2026AgenticRegime} 则提出了统一的 LLM 信号 + regime-aware 组合优化 agentic 框架。这些工作展示了 LLM agent 作为完整决策主体的潜力，但调用频次与成本对资源受限场景构成显著门槛；本文 C1 退而求其次，将 LLM 作为离线的语义抽取层，把可控成本作为首要工程约束。
+\textbf{LLM Agent 与多智能体交易范式}：FinMem\cite{Yu2024FinMem} 在 LLM trading agent 中加入分层记忆与角色画像设计；AlphaAgent\cite{Tang2025AlphaAgent}（KDD 2025）用 LLM 驱动正则化 alpha 挖掘以对抗 alpha decay；StockBench\cite{Wang2026StockBench} 提出沾染洁净（contamination-free）的多月度真实交易评测协议，对 GPT-5 / Claude-4 等前沿 LLM 作为自主交易 agent 进行评估，发现多数 agent 仍难稳定击败 buy-and-hold 基线；QuantAgent\cite{Li2025QuantAgent} 进一步设计了价格驱动的多智能体 LLM 高频交易框架，在跨资产 1H/4H K 线上取得最高 80\% 方向预测准确率；Karim 等\cite{Karim2026AgenticRegime} 则提出了统一的 LLM 信号 + regime-aware 组合优化 agentic 框架。这些工作展示了 LLM agent 作为完整决策主体的潜力，但调用频次与成本对资源受限场景构成显著门槛；本文则退而求其次，将 LLM 作为离线的语义抽取层，把可控成本作为首要的工程约束。
 
-\textbf{中文 A 股深度学习预测的最新范式}：MASTER\cite{Li2024MASTER}（AAAI 2024）提出 market-guided stock transformer 用动态市场信号引导个股预测；Ji 等\cite{Ji2025MMFTrans} 提出宏观-微观信息融合的多模态 transformer 框架。两者代表了 A 股深度学习的最新算法路线，与本文 C2 的轻量级 Stacking 框架形成参数规模与可解释性的鲜明对比。
+\textbf{中文 A 股深度学习预测的最新范式}：MASTER\cite{Li2024MASTER}（AAAI 2024）提出 market-guided stock transformer 用动态市场信号引导个股预测；Ji 等\cite{Ji2025MMFTrans} 提出宏观-微观信息融合的多模态 transformer 框架。两者代表了 A 股深度学习的最新算法路线，与本文采用的轻量级 Stacking 框架在参数规模与可解释性上形成鲜明对比。
 
-\textbf{Mixture-of-Experts (MoE) 范式}：MIGA\cite{Zhou2024MIGA} 提出按风格分组的 MoE 路由架构，在 CSI300 上取得 24\% 年化超额收益，刷新中国宽基指数 ML 增强 SOTA；LLMoE\cite{Li2025LLMoE} 进一步用 LLM 作为 MoE 路由器，融合价格与新闻头条选择最适合的专家模型；FTS-Text-MoE\cite{Tanaka2025FTSTextMoE} 用多模态 MoE 融合数值与文本预测；AlphaMix\cite{Sun2022AlphaMix} 则以两阶段 MoE 框架显式建模不确定性。这一线索表明，异构集成的下一站是\emph{条件化路由}而非简单加权融合。本文 C2 的 MLP 元学习器可视为该路线的轻量级实现，其端到端结构便于 CPU 训练与可解释性。
+\textbf{Mixture-of-Experts (MoE) 范式}：MIGA\cite{Zhou2024MIGA} 提出按风格分组的 MoE 路由架构，在 CSI300 上取得 24\% 年化超额收益，刷新中国宽基指数 ML 增强 SOTA；LLMoE\cite{Li2025LLMoE} 进一步用 LLM 作为 MoE 路由器，融合价格与新闻头条选择最适合的专家模型；FTS-Text-MoE\cite{Tanaka2025FTSTextMoE} 用多模态 MoE 融合数值与文本预测；AlphaMix\cite{Sun2022AlphaMix} 则以两阶段 MoE 框架显式建模不确定性。这一线索表明，异构集成的下一站是\emph{条件化路由}而非简单加权融合。本文的 MLP 元学习器可视为这一路线的轻量级实现，其端到端结构便于 CPU 训练与解释。
 
 \textbf{扩散模型与场景生成}：Yin 等\cite{Xu2025DiffusionFactor} 提出 Diffusion Factor Model，将因子结构嵌入扩散过程的 score function，在高维小样本场景下生成可用于均值-方差优化的合成收益；Diffolio\cite{Lee2025Diffolio} 则用层次注意力 + 相关性正则的条件扩散模型直接输出组合预测分布。这是 2025 年新兴的``生成式资产定价''路线，相较 Ledoit-Wolf 缩减提供了更灵活的协方差估计，但训练样本与算力需求仍较高。
 
-\textbf{自适应/在线 Conformal Prediction}：Gibbs 与 Cand\`es\cite{Gibbs2021ACI} 提出 Adaptive Conformal Inference (ACI)，通过在线调整 miscoverage 率适应分布漂移；Xu 与 Xie\cite{Xu2023SPCI}（ICML 2023）的 Sequential Predictive CP 引入残差自相关建模显著改善时序覆盖；Hallberg\cite{Hallberg2024MultiStepACI} 扩展到多步在线 ACI；Aydin 等\cite{Aydin2025TCP} 提出的 Temporal Conformal Prediction 在分位回归之上叠加衰减学习率，专为金融时序非平稳性设计；Yang 等\cite{Yang2025ECI}（ICLR 2025）的 Error-quantified Conformal Inference 以平滑 EQ 反馈替代二值 miscoverage，加速适配分布漂移；CPTC\cite{Sun2025CPTC}（NeurIPS 2025）引入显式 change point 状态预测；ResCP\cite{Neglia2026ResCP} 借助 reservoir computing 实现 training-free 的 CP。这些工作在覆盖率自适应性上明显优于经典 Split CP，是本文 C3 的直接竞争对手。
+\textbf{自适应/在线 Conformal Prediction}：Gibbs 与 Cand\`es\cite{Gibbs2021ACI} 提出 Adaptive Conformal Inference (ACI)，通过在线调整 miscoverage 率适应分布漂移；Xu 与 Xie\cite{Xu2023SPCI}（ICML 2023）的 Sequential Predictive CP 引入残差自相关建模显著改善时序覆盖；Hallberg\cite{Hallberg2024MultiStepACI} 扩展到多步在线 ACI；Aydin 等\cite{Aydin2025TCP} 提出的 Temporal Conformal Prediction 在分位回归之上叠加衰减学习率，专为金融时序非平稳性设计；Yang 等\cite{Yang2025ECI}（ICLR 2025）的 Error-quantified Conformal Inference 以平滑 EQ 反馈替代二值 miscoverage，加速适配分布漂移；CPTC\cite{Sun2025CPTC}（NeurIPS 2025）引入显式 change point 状态预测；ResCP\cite{Neglia2026ResCP} 借助 reservoir computing 实现 training-free 的 CP。这些工作在覆盖率自适应性上明显优于经典 Split CP，也是本文 Conformal Prediction 设计的直接对照。
 
 \textbf{元学习与在线组合}：Meta-LMPS-online\cite{Wang2025MetaLMPS} 用 MAML 元学习初始化的混合策略权重在线适配非平稳市场；Lu 等\cite{Lu2026SemiSandwich} 提出 CVaR 教师 + 半监督 sandwich training 的 Bayesian/Deterministic 学生组合优化代理，应对 label scarcity 与 regime shift；国金金工 TSGRU+LGBM\cite{Guojin2026TSGRU} 报告则展示了产业界 2026 年 A 股指增的主流路线：基于 TimeMixer 改进的时序 GRU 提取隐向量后由 LightGBM 集成，配合月度组合优化。
 
-综上，本文 C1-C4 的定位是\emph{覆盖广度与工程可复现性优先}：在四个相互正交的子方向上以最小依赖与可控成本实现完整管线，而非在任一子方向追求 SOTA 算法。第 §\ref{sec:future_work} 节将给出与上述前沿融合的具体路线图。
+综上，本文四项贡献的整体定位是\emph{覆盖广度与工程可复现性优先}：在四个相互正交的子方向上以最小依赖与可控成本实现完整可复现管线，而非在任一子方向追求 SOTA 算法。第 \ref{sec:future_work} 节将给出与上述前沿融合的具体路线图。
 
 \chapter{Smart Beta 策略重构与核心因子设计}
 
@@ -170,9 +168,9 @@ Lam 等\cite{Lam2015Numba} 提出的 Numba 借助 LLVM 将 Python 数值代码�
 本章对应 §\ref{sec:contributions} 的四项贡献，依次介绍四块新增模块的算法设计与工程实现。
 
 \section{多因子基础层（LightGBM 主回归器）}
-本文保留 LightGBM\cite{Ke2017LightGBM} 作为主回归器，特征采用 §\ref{subsec:data_quality} 之前章节定义的 15 个数值因子（见 §3 因子设计）。模型超参数固定为 \texttt{n\_estimators=300, learning\_rate=0.05, num\_leaves=31, subsample=0.8, colsample\_bytree=0.8}，训练标签为 \texttt{label\_excess\_return\_20d}。所有滚动训练窗口默认 12 个月（长周期）/ 6 个月（短周期），月度重训。该层提供本文所有后续创新点（C1-C3）所依赖的 baseline 预测信号。
+本文保留 LightGBM\cite{Ke2017LightGBM} 作为主回归器，特征采用 §\ref{subsec:data_quality} 之前章节定义的 15 个数值因子（见 §3 因子设计）。模型超参数固定为 \texttt{n\_estimators=300, learning\_rate=0.05, num\_leaves=31, subsample=0.8, colsample\_bytree=0.8}，训练标签为 \texttt{label\_excess\_return\_20d}。所有滚动训练窗口默认 12 个月（长周期）/ 6 个月（短周期），月度重训。该层为后续的舆情因子、Stacking 集成与 Conformal Prediction 模块提供统一的 baseline 预测信号。
 
-\section{C1：基于 Claude Opus 4.7 的舆情情感因子}
+\section{基于大语言模型的舆情情感因子}
 \subsection{管线设计}
 新闻文本来源于东方财富 \texttt{stock\_news\_em} 接口（沪深 300 成分股个股新闻流），日均产出约 10 条/股；公告与研报留待后续扩展。对每只股票，按 \emph{publish\_time} 升序聚合到批量 prompt（每批 10 条），调用 Claude API 输出严格 JSON：
 \begin{verbatim}
@@ -191,7 +189,7 @@ Lam 等\cite{Lam2015Numba} 提出的 Numba 借助 LLVM 将 Python 数值代码�
 \]
 其中 $\Delta h$ 为该条新闻发布时间距 16:00 收盘的小时差；当日 16:00 之后发布的新闻计入下一交易日，避免未来信息泄露。同时输出 5 日移动平均 \texttt{sentiment\_ma5} 作为低频通路。
 
-\section{C2：异构轻量多模型 Stacking 集成框架}
+\section{异构多模型 Stacking 集成框架}
 \subsection{L1 模型族}
 \begin{itemize}
     \item \textbf{LightGBM}\cite{Ke2017LightGBM}：参数同 §4.1。
@@ -203,7 +201,7 @@ Lam 等\cite{Lam2015Numba} 提出的 Numba 借助 LLVM 将 Python 数值代码�
 \subsection{元学习器与 OOF 训练}
 对每个调仓窗口 $t$，先用 3 折 KFold 在训练子集上生成各 L1 的 Out-of-Fold (OOF) 预测，得到\emph{元特征矩阵} $Z\in\mathbb{R}^{n_{\text{train}}\times 4}$；再用线性（默认）/ MLP / 简单平均三选一拟合 $Z$ 到标签 $y$。测试日每个 L1 在全量训练子集上 refit 后输出预测 $\hat Z\in\mathbb{R}^{n_{\text{test}}\times 4}$，元学习器再输出最终 \texttt{ml\_score}。该框架允许元学习器自动识别相关性高的 L1 模型并施加\emph{负向校正}\cite{Wolpert1992,Lopez2018Stacking}。
 
-\section{C3：Conformal Prediction 不确定性量化与置信加权组合优化}
+\section{Conformal Prediction 与置信加权组合优化}
 \subsection{Split / Mondrian Conformal Prediction}
 对每个滚动窗口，将训练子集按 $1-r:r$（$r=0.3$）划分为 train\_proper 与 calibration set。LightGBM 在 train\_proper 上拟合后，计算 calibration 集残差 $r_i=|y_i-\hat y_i|$，取分位数 $q_\alpha=\text{Quantile}_{(n+1)(1-\alpha)/n}(r)$\cite{Vovk2005Conformal}（$\alpha=0.1$，对应 90\% 区间）。测试样本预测为 $[\hat y - q_\alpha,\, \hat y + q_\alpha]$，置信度 $c_i=1/(2q_\alpha+\epsilon)$ 归一化到 [0,1]。Mondrian 版本按申万一级行业分组计算 $q_\alpha$，提升条件覆盖率\cite{Romano2019CQR,Angelopoulos2021Gentle}。
 
@@ -215,7 +213,7 @@ Lam 等\cite{Lam2015Numba} 提出的 Numba 借助 LLVM 将 Python 数值代码�
     \item \texttt{objective\_penalty}：QP 目标新增 $-\gamma\sum_i (1-c_i)w_i^2$，$\gamma=0.1$ 默认。
 \end{itemize}
 
-\section{C4：Numba JIT + joblib 并行的高性能回测引擎}
+\section{基于 Numba JIT 与 joblib 并行的回测引擎}
 \subsection{Numba JIT NAV 累乘核}
 将原 \texttt{BaselineBacktestEngine.\_build\_nav} 中的按日 Python 循环抽取为 \texttt{compute\_nav\_loop} 核函数，用 \texttt{@numba.njit(cache=True)} 装饰\cite{Lam2015Numba}，输入为 $(n_d\times n_s)$ 的日收益矩阵、权重矩阵、$(n_d,)$ 的基准收益、调仓掩码与单边换手率；输出 6 路一维 \texttt{float64} 序列。同时实现纯 NumPy 等价版本作为 fallback（当 numba 未安装时降级）。
 
@@ -239,31 +237,31 @@ Lam 等\cite{Lam2015Numba} 提出的 Numba 借助 LLVM 将 Python 数值代码�
 
 \begin{table}[htbp]
 \centering
-\caption{四项创新点对应的代码模块清单}
+\caption{核心算法与工程模块清单}
 \label{tab:code_mapping}
 \begin{tabular}{lp{0.55\textwidth}}
 \toprule
 \textbf{创新点} & \textbf{核心模块} \\
 \midrule
-\multirow{4}{*}{C1 LLM 舆情因子} & \texttt{src/data/news\_client.py}：东方财富新闻接口封装 \\
+\multirow{4}{*}{舆情情感因子} & \texttt{src/data/news\_client.py}：东方财富新闻接口封装 \\
  & \texttt{src/data/llm\_sentiment.py}：Claude API 封装 + BudgetTracker + SHA-256 缓存 \\
  & \texttt{src/factors/sentiment.py}：日频聚合 + 时间衰减 \\
  & \texttt{src/pipelines/build\_sentiment\_panel.py}：端到端管线 \\
 \midrule
-\multirow{6}{*}{C2 Stacking 集成} & \texttt{src/models/base.py}：AlphaModelBase 抽象基类 \\
+\multirow{6}{*}{Stacking 集成} & \texttt{src/models/base.py}：AlphaModelBase 抽象基类 \\
  & \texttt{src/models/xgboost\_model.py}：XGBoost L1 模型 \\
  & \texttt{src/models/gru\_model.py}：PyTorch CPU GRU L1 模型 \\
  & \texttt{src/models/ridge\_model.py}：Ridge L1 模型 \\
  & \texttt{src/models/stacking.py}：OOF + MLP 元学习器 \\
  & \texttt{src/pipelines/run\_stacking\_experiment.py}：5 variant 对比 + 消融 \\
 \midrule
-\multirow{5}{*}{C3 Conformal Prediction} & \texttt{src/models/conformal.py}：Split / Mondrian CP \\
+\multirow{5}{*}{Conformal Prediction} & \texttt{src/models/conformal.py}：Split / Mondrian CP \\
  & \texttt{src/models/conformal\_lightgbm.py}：与 LightGBM 解耦的包装层 \\
  & \texttt{src/portfolio/uncertainty\_aware\_optimizer.py}：三种置信加权 QP \\
  & \texttt{src/pipelines/run\_conformal\_experiment.py}：4 scheme 对比 \\
  & \texttt{src/pipelines/validate\_coverage.py}：覆盖率与置信分桶分析 \\
 \midrule
-\multirow{4}{*}{C4 Numba 加速} & \texttt{src/backtest/numba_kernels.py}：\texttt{@njit} 核函数 + NumPy fallback \\
+\multirow{4}{*}{Numba 加速} & \texttt{src/backtest/numba\_kernels.py}：\texttt{@njit} 核函数 + NumPy fallback \\
  & \texttt{src/backtest/parallel.py}：joblib 并行 + 模型缓存 \\
  & \texttt{src/backtest/engine.py}：BaselineBacktestEngine 集成 numba 路径 \\
  & \texttt{src/pipelines/benchmark\_engine.py}：性能基准 \\
@@ -279,10 +277,10 @@ Lam 等\cite{Lam2015Numba} 提出的 Numba 借助 LLVM 将 Python 数值代码�
 
 \section{实验设定与数据集}
 \subsection{长周期实验：2015-2024 沪深 300}
-长周期实验对应 §\ref{sec:contributions} 中 C2/C3/C4 的稳健性验证，覆盖 2015 年 1 月至 2024 年 12 月共 10 年，约 618{,}056 行因子面板（298/300 股票覆盖）。数据来源 \texttt{akshare + baostock}：行情、估值、季度财务、北向资金、M2、中美利差等共 16 列因子。月度调仓、计入 0.1\% 双边手续费 + 0.1\% 滑点。
+长周期实验主要用于验证 Stacking 集成、Conformal Prediction 与 Numba 加速三项贡献的稳健性，覆盖 2015 年 1 月至 2024 年 12 月共 10 年，约 618{,}056 行因子面板（298/300 股票覆盖）。数据来源 \texttt{akshare + baostock}：行情、估值、季度财务、北向资金、M2、中美利差等共 16 列因子。月度调仓、计入 0.1\% 双边手续费 + 0.1\% 滑点。
 
 \subsection{短周期实验：2024-2025 沪深 300（创新点真实数据验证）}
-为对接 C1（LLM 舆情，2025 年新闻数据成本最低）与 C2/C3 的端到端流程验证，构造了 2024-01-02 至 2025-05-30 共 17 个月的较短面板（299/300 股 $\times$ 339 交易日 = 100{,}993 行 $\times$ 45 列），含全部 15 个数值因子。滚动训练窗口设为 6 个月，最小训练样本 500。该样本因区间较短、近期 A 股个股波动剧烈，单 LightGBM 出现 IR $>$ 7 的高乐观结果，需结合长周期实验综合判断。
+为兼顾 LLM 舆情打分的成本可控性（2025 年新闻数据成本最低）以及 Stacking、Conformal 模块的端到端流程验证，构造了 2024-01-02 至 2025-05-30 共 17 个月的较短面板（299/300 股 $\times$ 339 交易日 = 100{,}993 行 $\times$ 45 列），含全部 15 个数值因子。滚动训练窗口设为 6 个月，最小训练样本 500。该样本因区间较短、近期 A 股个股波动剧烈，单 LightGBM 出现 IR $>$ 7 的高乐观结果，需结合长周期实验综合判断。
 
 
 \subsection{数据完整性声明}
@@ -407,15 +405,15 @@ LightGBM 将 IR 由 0.237 提升至 1.685，对应年化超额由 4.21\% 跃升�
 \label{fig:long_horizon_excess}
 \end{figure}
 
-\section{C1：LLM 舆情因子可行性验证}
+\section{舆情情感因子可行性验证}
 \label{sec:sentiment_results}
 
 \subsection{打分结果与成本}
-本节在 61 只沪深 300 成分股、2026-03-30 至 2026-05-24 区间共 610 条新闻上验证 C1 管线。打分全程走 \texttt{claude-haiku-4-5} 快速通道，预算守门 10 美元。
+本节在 61 只沪深 300 成分股、2026-03-30 至 2026-05-24 区间共 610 条新闻上验证舆情因子打分管线。全部调用经由 \texttt{claude-haiku-4-5} 快速通道，并在 10 美元预算上限内运行。
 
 \begin{table}[htbp]
 \centering
-\caption{C1 LLM 舆情打分管线成本与信号质量（610 条新闻 / 61 股）}
+\caption{LLM 舆情打分管线成本与信号质量（610 条新闻 / 61 股）}
 \label{tab:sentiment_cost}
 \begin{tabular}{lc}
 \toprule
@@ -442,23 +440,23 @@ polarity 范围 & [-0.95, 0.95] \\
 \begin{figure}[htbp]
 \centering
 \includegraphics[width=0.95\textwidth]{figures/chart_c1_polarity_distribution.png}
-\caption{C1 LLM 舆情打分极性分布与日均情感时间序列}
+\caption{LLM 舆情打分极性分布与日均情感时间序列}
 \label{fig:c1_polarity}
 \end{figure}
 
 \begin{figure}[htbp]
 \centering
 \includegraphics[width=0.85\textwidth]{figures/chart_c1_topic_distribution.png}
-\caption{C1 LLM 舆情打分按主题分类的极性分布}
+\caption{LLM 舆情打分按主题分类的极性分布}
 \label{fig:c1_topic}
 \end{figure}
 
-\section{C2：Stacking 集成对比（2024-2025）}
+\section{Stacking 集成对比（2024-2025）}
 \label{sec:stacking_results}
 
 \begin{table}[htbp]
 \centering
-\caption{C2 异构多模型与 Stacking 集成对照（2024-2025 短样本，等权 Top20）}
+\caption{异构多模型与 Stacking 集成对照（2024-2025 短样本，等权 Top20）}
 \label{tab:stacking_compare}
 \begin{tabular}{lccccc}
 \toprule
@@ -477,31 +475,31 @@ Ridge 单模型 & 10.50\% & 0.748 & 0.577 & -20.67\% & 6.87 \\
 \begin{figure}[htbp]
 \centering
 \includegraphics[width=0.95\textwidth]{figures/chart_c2_variant_comparison.png}
-\caption{C2 异构多模型与 Stacking 集成 IR / Sharpe / 年化超额对比}
+\caption{异构多模型与 Stacking 集成 IR / Sharpe / 年化超额对比}
 \label{fig:c2_variant}
 \end{figure}
 
 \begin{figure}[htbp]
 \centering
 \includegraphics[width=0.85\textwidth]{figures/chart_c2_meta_weights.png}
-\caption{C2 Stacking 元学习器各 L1 模型权重的滚动轨迹}
+\caption{Stacking 元学习器各 L1 模型权重的滚动轨迹}
 \label{fig:c2_meta}
 \end{figure}
 
 \begin{figure}[htbp]
 \centering
 \includegraphics[width=0.85\textwidth]{figures/chart_c2_ablation.png}
-\caption{C2 Stacking 消融实验（合成数据）：去掉 GRU 后 IR 由 4.59 暴跌至 0.39}
+\caption{Stacking 消融实验（合成数据）：去掉 GRU 后 IR 由 4.59 暴跌至 0.39}
 \label{fig:c2_ablation}
 \end{figure}
 
 
-\section{C3：Conformal Prediction 与置信加权（2024-2025）}
+\section{Conformal Prediction 与置信加权(2024-2025)}
 \label{sec:conformal_results}
 
 \begin{table}[htbp]
 \centering
-\caption{C3 Conformal Prediction 三种置信加权方案对照（2024-2025 约束型 LightGBM）}
+\caption{Conformal Prediction 三种置信加权方案对照（2024-2025 约束型 LightGBM）}
 \label{tab:conformal_compare}
 \begin{tabular}{lccccc}
 \toprule
@@ -539,21 +537,21 @@ Split Conformal 在 \texttt{alpha=0.1} 设定下输出 90\% 置信区间。短�
 \begin{figure}[htbp]
 \centering
 \includegraphics[width=0.95\textwidth]{figures/chart_c3_metrics_compare.png}
-\caption{C3 Conformal Prediction 四种置信加权方案绩效对照}
+\caption{Conformal Prediction 四种置信加权方案绩效对照}
 \label{fig:c3_metrics}
 \end{figure}
 
 \begin{figure}[htbp]
 \centering
 \includegraphics[width=0.85\textwidth]{figures/chart_c3_coverage_timeline.png}
-\caption{C3 按月份 Conformal 覆盖率与理论 90\% 参考线}
+\caption{按月份 Conformal 覆盖率与理论 90\% 参考线}
 \label{fig:c3_coverage}
 \end{figure}
 
 \begin{figure}[htbp]
 \centering
 \includegraphics[width=0.95\textwidth]{figures/chart_c3_confidence_buckets.png}
-\caption{C3 按置信度分桶的 IR 与命中率（揭示"高置信即过拟合"反向规律）}
+\caption{按置信度分桶的 IR 与命中率（揭示"高置信即过拟合"反向规律）}
 \label{fig:c3_buckets}
 \end{figure}
 
@@ -567,7 +565,7 @@ Split Conformal 在 \texttt{alpha=0.1} 设定下输出 90\% 置信区间。短�
 \begin{itemize}
     \item 合成数据 demo 上 Mondrian 矫正反向规律，是因为合成数据的行业残差结构是\emph{人为可分组}的；
     \item \textbf{真实 A 股环境下"高置信即过拟合"反向规律相当稳健}，仅靠行业分组校准无法矫正，需要更强的条件性 CP（如 CQR、Adaptive CP）或彻底改换不确定性度量；
-    \item 这印证了本文 C3 的核心实证发现的稳健性，也为未来工作（§\ref{sec:future_work}）指明了具体的方法学改进方向。
+    \item 这印证了本章 Conformal Prediction 反向规律这一核心实证发现的稳健性，也为未来工作（§\ref{sec:future_work}）指明了具体的方法学改进方向。
 \end{itemize}
 
 \subsection{Conformal 覆盖率对 $\alpha$ 的敏感性测试}
@@ -594,7 +592,7 @@ $\alpha$ & \textbf{理论覆盖率} & \textbf{实测覆盖率} & \textbf{偏差 
 \begin{figure}[htbp]
 \centering
 \includegraphics[width=0.95\textwidth]{figures/chart_c3_alpha_sensitivity.png}
-\caption{C3 Conformal Prediction 覆盖率对 $\alpha$ 的敏感性（偏差恒定 -9 pp）}
+\caption{Conformal Prediction 覆盖率对 $\alpha$ 的敏感性（偏差恒定 -9 pp）}
 \label{fig:c3_alpha_sensitivity}
 \end{figure}
 
@@ -620,15 +618,15 @@ $\gamma$ & \textbf{平均 $\alpha_t$} & \textbf{最终 $\alpha_t$} & \textbf{估
 \end{tabular}
 \end{table}
 
-\textbf{关键结论}：低学习率 $\gamma \in [0.005, 0.01]$ 下，ACI 估算覆盖率可达 89.5-89.7\%（向理论 90\% 收敛），相比静态 Split CP 的 80.9\% \textbf{矫正了约 80\% 的覆盖偏差}；过大的学习率（$\gamma=0.1$）则因 $\alpha_t$ 自身震荡反而恶化覆盖。该简化模拟提供了 ACI 在 A 股环境下的定性证据，正式实现与端到端集成 ConstrainedPortfolioOptimizer 留作 §\ref{sec:future_work} 中的 C3 升级方向。
+\textbf{关键结论}：低学习率 $\gamma \in [0.005, 0.01]$ 下，ACI 估算覆盖率可达 89.5-89.7\%（向理论 90\% 收敛），相比静态 Split CP 的 80.9\% \textbf{矫正了约 80\% 的覆盖偏差}；过大的学习率（$\gamma=0.1$）则因 $\alpha_t$ 自身震荡反而恶化覆盖。该简化模拟提供了 ACI 在 A 股环境下的定性证据，正式实现与端到端集成 ConstrainedPortfolioOptimizer 留作 §\ref{sec:future_work} 节中 Conformal Prediction 模块的升级方向。
 
 
-\section{C4：回测引擎加速比基准}
+\section{回测引擎加速比基准}
 \label{sec:c4_speedup}
 
 \begin{table}[htbp]
 \centering
-\caption{C4 Numba JIT vs 纯 Python 回测引擎性能对照（M-series Mac，single thread）}
+\caption{Numba JIT vs 纯 Python 回测引擎性能对照（M-series Mac，single thread）}
 \label{tab:c4_benchmark}
 \begin{tabular}{lcccc}
 \toprule
@@ -648,7 +646,7 @@ Numba JIT 版与纯 Python 版的 NAV 数值偏差小于 $10^{-15}$，证明加�
 
 \begin{table}[htbp]
 \centering
-\caption{C4 Kernel 级 Numba JIT vs 纯 Python 嵌套 for-loop 的加速比 surface}
+\caption{Kernel 级 Numba JIT vs 纯 Python 嵌套 for-loop 的加速比 surface}
 \label{tab:c4_kernel_speedup}
 \begin{tabular}{ccccc}
 \toprule
@@ -667,7 +665,7 @@ Numba JIT 版与纯 Python 版的 NAV 数值偏差小于 $10^{-15}$，证明加�
 \begin{itemize}
     \item \textbf{Kernel 级加速 130-310$\times$} 稳定保持在一个数量级以上，与 LLVM JIT 编译 + 类型特化 + 循环展开的理论增益一致；
     \item \textbf{Engine 级加速 9.84$\times$} 受限于 pandas/dict 等不可加速开销，是工程落地的真实数字；
-    \item 两层数据共同说明：\emph{若进一步把回测引擎中剩余的 DataFrame 操作替换为纯数组传递}（例如通过 \texttt{numba} 兼容的 record array 或 Cython structured types），engine 级加速比有望从 9.84$\times$ 进一步逼近 kernel 级 100$\times$ 量级。这也是 C4 后续工程优化的明确方向。
+    \item 两层数据共同说明：\emph{若进一步把回测引擎中剩余的 DataFrame 操作替换为纯数组传递}（例如通过 \texttt{numba} 兼容的 record array 或 Cython structured types），engine 级加速比有望从 9.84$\times$ 进一步逼近 kernel 级 100$\times$ 量级。这也是后续工程优化的明确方向。
     \item 数值偏差恒等于 0（不是 $10^{-15}$ 级浮点累积误差），因为 Python loop 与 Numba 都按相同顺序执行同样的浮点运算。
 \end{itemize}
 
@@ -675,7 +673,7 @@ Numba JIT 版与纯 Python 版的 NAV 数值偏差小于 $10^{-15}$，证明加�
 \begin{figure}[htbp]
 \centering
 \includegraphics[width=0.85\textwidth]{figures/chart_c4_speedup.png}
-\caption{C4 Numba JIT vs Python 回测引擎在不同规模上的加速比}
+\caption{Numba JIT vs Python 回测引擎在不同规模上的加速比}
 \label{fig:c4_speedup}
 \end{figure}
 
@@ -718,7 +716,7 @@ Numba JIT 版与纯 Python 版的 NAV 数值偏差小于 $10^{-15}$，证明加�
 \end{tabular}
 \end{table}
 
-短样本下 IR 衰减幅度比长样本更陡峭（10.28 → 0.94 vs 长样本 1.53 → 0.61），原因是 train\_months 占用过大比例后测试期被压缩；但 \textbf{衰减方向完全一致}，强化了 A 股非平稳性在不同时间尺度上的统计稳健性。本文最终选择 train\_months=12（长样本）/ train\_months=6（短样本）作为各自的折衷点。
+短样本下 IR 衰减幅度比长样本更陡峭（10.28 → 0.94 vs 长样本 1.53 → 0.61），原因是 train\_months 占用过大比例后测试期被压缩；但 \textbf{衰减方向完全一致}，强化了 A 股非平稳性在不同时间尺度上的统计稳健性。本文最终选择 train\_months=12（长样本）/ train\_months=6（短样本）作为各自的折中点。
 
 
 \begin{figure}[htbp]
@@ -808,7 +806,7 @@ Conformal + 优化器（obj. penalty） & 65.41\% & 3.342 & 5.634 & -9.50\% & 2.
 \end{tabular}
 \end{table}
 
-\textbf{结论}：IR 与持仓数单调反相关——持仓越集中，alpha 信号越被放大，但回撤也略增。Top 20 是 IR（7.13）与最大回撤（-10.03\%）之间的折衷点，并且年化换手 9.93 已经接近实施边界，再缩到 Top 10 会进一步推高换手到 10.47，超出大多数指数增强产品的可接受范围。这与表~\ref{tab:final_comparison} 中 LightGBM + 优化器的 IR 5.84 / 换手 2.30 形成对照：\emph{优化器的核心作用是把"等权 Top 20 上限 7.13"的信号在严格风控约束下"传输"到 5.84，传输系数 $TC \approx 0.82$}，与 §\ref{sec:long_term} 的理论讨论一致。
+\textbf{结论}：IR 与持仓数单调反相关——持仓越集中，alpha 信号越被放大，但回撤也略增。Top 20 是 IR（7.13）与最大回撤（-10.03\%）之间的折中点，并且年化换手 9.93 已经接近实施边界，再缩到 Top 10 会进一步推高换手到 10.47，超出大多数指数增强产品的可接受范围。这与表~\ref{tab:final_comparison} 中 LightGBM + 优化器的 IR 5.84 / 换手 2.30 形成对照：\emph{优化器的核心作用是把"等权 Top 20 上限 7.13"的信号在严格风控约束下"传输"到 5.84，传输系数 $TC \approx 0.82$}，与 §\ref{sec:long_term} 的理论讨论一致。
 
 
 
@@ -852,7 +850,7 @@ Conformal + 优化器（obj. penalty） & 65.41\% & 3.342 & 5.634 & -9.50\% & 2.
 \toprule
 \textbf{测试维度} & \textbf{发现} & \textbf{结论 / 论文位置} \\
 \midrule
-约束消融（4 项约束） & 跟踪误差 / 行业 / 换手 / 全部 & 完整约束版本是收益-可实施性最优折衷（§\ref{sec:constraint_ablation}） \\
+约束消融（4 项约束） & 跟踪误差 / 行业 / 换手 / 全部 & 完整约束版本是收益-可实施性最优折中（§\ref{sec:constraint_ablation}） \\
 \midrule
 特征分组消融 & full\_with\_external IR 2.31 > full\_factor IR 1.52 & 外部宏观因子贡献 +50\%（§\ref{sec:macro_lw}） \\
 \midrule
@@ -866,29 +864,31 @@ Mondrian 行业分组（合成 vs 真实） & 合成数据矫正反向规律 / �
 \midrule
 ACI 学习率 $\gamma$ 模拟（0.005-0.10） & $\gamma=0.005$ 时估算覆盖率 89.7\% & ACI 可矫正 \~80\% 偏差（§\ref{subsec:aci_simulation}） \\
 \midrule
-持仓数 Top-N（10/20/30/50） & IR 8.26 → 4.98 单调下降 & Top 20 是 IR-回撤折衷点，TC$\approx$0.82（§\ref{subsec:topn_sensitivity}） \\
+持仓数 Top-N（10/20/30/50） & IR 8.26 → 4.98 单调下降 & Top 20 是 IR-回撤折中点，TC$\approx$0.82（§\ref{subsec:topn_sensitivity}） \\
 \midrule
 Numba 规模 surface（50-500 股 × 252-2520 日） & Kernel 级加速 130-310$\times$ & 与 LLVM 类型特化理论预期一致（§\ref{subsec:c4_kernel_vs_engine}） \\
 \midrule
-五策略最终对比（baseline / LGBM / Stacking / Conformal） & Stacking IR 5.92 > LightGBM IR 5.84 & C2 异构集成在带约束情境下小幅但稳定击败单模型（§\ref{sec:final_comparison}） \\
+五策略最终对比（baseline / LGBM / Stacking / Conformal） & Stacking IR 5.92 > LightGBM IR 5.84 & 异构集成在带约束情境下小幅但稳定击败单模型（§\ref{sec:final_comparison}） \\
 \midrule
 数据完整性 & 多数因子 $\ge$ 94\%、benchmark\_weight 之和 0.998 & 面板质量满足实验要求（§\ref{subsec:data_quality}） \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-\textbf{综合结论}：本文四项创新点 C1-C4 均经过\emph{多维度敏感性 / 消融测试}的稳健性验证。最重要的稳健性证据集中体现于：(i) Stacking 在带优化器的真实回测中持续小幅击败单 LightGBM（C2 实证支撑），(ii) Conformal Prediction 反向规律在 $\alpha$ 敏感性与 Mondrian 真实数据复测下均稳健（C3 方法学发现稳健性），(iii) Numba JIT 在 5 个量级规模上加速比稳定在 130-310$\times$（C4 工程加速可推广性）。这些证据共同支撑了 §\ref{sec:future_work} 路线图的实施依据。
+\textbf{综合结论}：本文四项贡献均经过多维度敏感性与消融测试的稳健性验证。其中三类证据最为关键：第一，Stacking 集成在带优化器的真实回测中持续小幅击败单 LightGBM，为集成框架的实证价值提供了直接支撑；第二，Conformal Prediction 反向规律在 $\alpha$ 敏感性扫描与 Mondrian 真实数据复测下保持稳健，证明这一方法学发现并非个别参数下的偶然结果；第三，Numba JIT 在跨越 5 个量级的规模上加速比始终稳定在 130--310$\times$，说明工程加速具有良好的可推广性。这三类证据共同支撑了 §\ref{sec:future_work} 节路线图的实施依据。
 
 \chapter{结论与展望}
 
 \section{主要结论}
-本文以沪深 300 指数增强为应用场景，从计算机算法与工程加速两个维度提出并实证了四项创新点：
-\begin{enumerate}
-    \item \textbf{C1（LLM 舆情因子）}：通过 Claude Opus 4.7 / Haiku 4.5 双通道、SHA-256 缓存与硬性预算守门，将 LLM 调用从昂贵的离线服务转化为可控成本的日频 alpha 来源；端到端单次实验成本可压缩到 10 美元以内。
-    \item \textbf{C2（异构 Stacking 集成）}：LightGBM + XGBoost + GRU + Ridge 的异构 L1 模型族通过 OOF KFold 与 MLP 元学习器自适应融合；在 2024-2025 短样本上，元学习器自动给同质化最强的 Ridge 模型赋予负向校正权重，体现了 Stacking 在低信噪比金融数据中的自动模型选择能力。
-    \item \textbf{C3（Conformal Prediction 置信加权）}：Split / Mondrian CP 与本土化 QP 优化器耦合，三种置信加权方案在短样本上的实测覆盖率与理论 90\% 的偏差控制在 10 个百分点内。本文同时揭示了 A 股低信噪比环境下\emph{高置信度即过拟合}的反向规律，为后续不确定性感知型组合提供了实证依据。
-    \item \textbf{C4（Numba JIT 加速）}：将回测核心循环改写为 Numba JIT，实测十年沪深 300 面板上加速 9.84$\times$ 且数值偏差小于 $10^{-15}$；joblib 并行进一步将消融实验加速 1.48$\times$。该工程加速直接呼应了课题书``传统策略计算量大、优化过程耗时长''的核心痛点。
-\end{enumerate}
+本文以沪深 300 指数增强为应用场景，从计算机算法与工程加速两个维度提出并实证了四项贡献。
+
+在舆情信号方面，借助 Claude Opus 4.7 与 Haiku 4.5 双通道、SHA-256 缓存与预算上限守门，将原本昂贵的 LLM 调用转化为可控成本的日频 alpha 来源，整条管线的端到端单次实验成本可被压缩到 10 美元以内。
+
+在模型集成方面，LightGBM、XGBoost、轻量 GRU 与 Ridge 四个异构 L1 模型通过 KFold 折外预测与 MLP 元学习器自适应融合；2024-2025 短样本上，元学习器自动给同质化最强的 Ridge 赋予负向校正权重，展现了 Stacking 在低信噪比金融数据中自动甄别冗余模型的能力。
+
+在不确定性量化方面，将 Split 与 Mondrian Conformal Prediction 与本土化 QP 优化器耦合，三种置信加权方案的实测覆盖率与理论 90\% 的偏差在短样本上稳定地控制在 10 个百分点之内；同时揭示了 A 股低信噪比环境下\emph{高置信即过拟合}这一反向规律，为后续不确定性感知型组合提供了直接的实证依据。
+
+在工程加速方面，回测核心循环被改写为 Numba JIT 编译版本，十年沪深 300 面板上加速 9.84$\times$ 且数值偏差小于 $10^{-15}$；joblib 并行进一步把消融实验加速 1.48$\times$。这一加速直接回应了课题书所提的``传统策略计算量大、优化过程耗时长''核心痛点。
 
 长周期 2015-2024 实证显示，约束型 LightGBM 在叠加宏观外部数据与 Ledoit-Wolf 缩减后，信息比率（IR）由静态多因子的 0.237 跃升至 2.449，最大回撤由 -58.53\% 收敛至 -25.37\%；严格 OOS 验证进一步指出``近期 1 年 $\to$ 次年''的滚动窗口才是 A 股 LightGBM 模型可投资性的关键。
 
@@ -900,11 +900,11 @@ Numba 规模 surface（50-500 股 × 252-2520 日） & Kernel 级加速 130-310$
 当前实验仍受样本规模与外部数据稳定性的双重制约，与 §\ref{sec:2026_sota} 梳理的 2026 前沿工作相比，本文有以下具体升级方向：
 
 \begin{itemize}
-    \item \textbf{数据扩展（C1）}：sentiment 因子真实数据覆盖率仅 0.32\%，下一步引入巨潮资讯公告与 Wind 研报扩大语料，并参照 StockBench\cite{Wang2026StockBench} 的 contamination-free 设计避免回测污染。
-    \item \textbf{C2 升级为 MoE 路由}：将 MLP 元学习器升级为 MIGA\cite{Zhou2024MIGA} 风格分组 MoE 或 LLMoE\cite{Li2025LLMoE} 的 LLM-as-Router，并在国金金工 TSGRU+LGBM\cite{Guojin2026TSGRU} 框架内做对照。
-    \item \textbf{C3 升级为自适应 CP}：尝试 TCP\cite{Aydin2025TCP}、ECI\cite{Yang2025ECI}（ICLR 2025）、CPTC\cite{Sun2025CPTC}（NeurIPS 2025）与 ResCP\cite{Neglia2026ResCP} 等具有 change-point 感知与在线衰减学习率的变体，矫正 §\ref{subsec:alpha_sensitivity} 揭示的 -9 pp 系统性偏差。
+    \item \textbf{舆情语料扩展}：sentiment 因子的真实数据覆盖率目前仅 0.32\%，下一步将引入巨潮资讯公告与 Wind 研报扩大语料，并参照 StockBench\cite{Wang2026StockBench} 的 contamination-free 设计避免回测污染。
+    \item \textbf{集成框架升级为 MoE 路由}：将 MLP 元学习器替换为 MIGA\cite{Zhou2024MIGA} 风格的分组 MoE 或 LLMoE\cite{Li2025LLMoE} 的 LLM-as-Router，并与国金金工 TSGRU+LGBM\cite{Guojin2026TSGRU} 框架做横向对照。
+    \item \textbf{自适应 Conformal Prediction}：进一步尝试 TCP\cite{Aydin2025TCP}、ECI\cite{Yang2025ECI}（ICLR 2025）、CPTC\cite{Sun2025CPTC}（NeurIPS 2025）与 ResCP\cite{Neglia2026ResCP} 等具备 change-point 感知与在线衰减学习率的变体，以矫正 §\ref{subsec:alpha_sensitivity} 节揭示的 -9 pp 系统性偏差。
     \item \textbf{扩散场景增广}：以 Diffusion Factor Model\cite{Xu2025DiffusionFactor} 或 Diffolio\cite{Lee2025Diffolio} 生成的多场景合成收益替代 Ledoit-Wolf 缩减估计协方差。
-    \item \textbf{C4 跨节点扩展}：基于 Dask / Ray 做跨节点参数搜索；调用 LightGBM 的 GPU 后端验证学术与工程 trade-off。
+    \item \textbf{加速引擎跨节点扩展}：基于 Dask / Ray 做跨节点参数搜索，并调用 LightGBM 的 GPU 后端进一步评估学术与工程之间的 trade-off。
     \item \textbf{LLM Agent 决策融合}：参考 QuantAgent\cite{Li2025QuantAgent} 与 Karim 等\cite{Karim2026AgenticRegime} 的 agentic regime-aware 框架，将 LLM 舆情因子升级为完整的 LLM agent 信号源 + 决策代理；并结合 Meta-LMPS-online\cite{Wang2025MetaLMPS} 实现策略级在线适配。
 \end{itemize}
 
@@ -916,9 +916,9 @@ Numba 规模 surface（50-500 股 × 252-2520 日） & Kernel 级加速 130-310$
     \item \textbf{完整教学样本}：从原始 \texttt{akshare/baostock} 数据接入、因子工程、机器学习训练、组合优化到回测评估的完整可复现链路，可作为后续量化方向同学的入门参考与改造起点。
     \item \textbf{2026 前沿对照表}：§\ref{sec:2026_sota} 系统梳理了 LLM Agent、MoE、Diffusion、自适应 CP 等 5 个方向的 16 篇最新工作，为后续选题与文献综述提供现成的索引。
     \item \textbf{LLM-as-a-Service 工程范式}：本文给出的 SHA-256 缓存 + 硬性预算守门 + 批量 prompt + 双通道 (Haiku / Opus) 模式，可直接套用到其他量化文本理解任务（如分析师报告评分、上市公司公告事件抽取等），将 LLM 从昂贵的离线服务转化为可控成本的日频信号源。
-    \item \textbf{统计学习不确定性量化的工程化}：C3 章节给出的 Split / Mondrian CP 与三种置信加权 QP 方案是国内本科毕设阶段较少见的工程化实现，对其他需要 ``置信感知'' 仓位的策略（如商品 / 期权 / FX）具有直接迁移价值。
+    \item \textbf{统计学习不确定性量化的工程化}：Conformal Prediction 章节给出的 Split / Mondrian CP 与三种置信加权 QP 方案是国内本科毕设阶段较少见的工程化实现，对其他需要 ``置信感知'' 仓位的策略（如商品 / 期权 / FX）具有直接迁移价值。
     \item \textbf{开源代码与文档}：所有代码、数据接入、超参数与实验脚本均在 \url{https://github.com/aokimi0/IndexEnhancementStrategy} 公开；论文配套 \texttt{check\_paper\_health.py} 与 \texttt{generate\_innovation\_charts.py} 工具可被其他论文写作者直接复用。
-    \item \textbf{诚实研究规范}：本文同时披露了 sentiment 因子时间移位 demo 的局限（§3.19 in \texttt{experiment_log}）与 Conformal Prediction 在 A 股的反向规律（§\ref{sec:conformal_results}），未掩盖负面或令人困惑的实验结果。这种披露规范对后续研究者复现与改进具有重要价值。
+    \item \textbf{诚实研究规范}：本文同时披露了 sentiment 因子时间移位 demo 的局限（§3.19 in \texttt{experiment\_log}）与 Conformal Prediction 在 A 股的反向规律（§\ref{sec:conformal_results}），未掩盖负面或令人困惑的实验结果。这种披露规范对后续研究者复现与改进具有重要价值。
 \end{itemize}
 
 \section{超参数总表}
@@ -1020,15 +1020,15 @@ ANTHROPIC_MAX_USD=20
 
 \subsection{核心实验入口}
 \begin{itemize}
-    \item \textbf{C1 LLM 舆情}：\texttt{python -m src.pipelines.build\_sentiment\_panel --start 2025-01-01 --end 2025-05-30 --output processed/sentiment\_panel.csv --max-codes 60 --max-usd 8}
-    \item \textbf{C2 Stacking}：\texttt{python -m src.pipelines.run\_stacking\_experiment --input processed/hs300\_panel\_2024\_2025\_v2.csv --variants lgbm xgb ridge stacking --use-external-features}
-    \item \textbf{C3 Conformal}：\texttt{python -m src.pipelines.run\_conformal\_experiment --input processed/hs300\_panel\_2024\_2025\_v2.csv --schemes baseline alpha\_scale candidate\_filter objective\_penalty --use-external-features}
-    \item \textbf{C4 Numba}：\texttt{python -m src.pipelines.benchmark\_engine}
+    \item \textbf{舆情情感因子}：\texttt{python -m src.pipelines.build\_sentiment\_panel --start 2025-01-01 --end 2025-05-30 --output processed/sentiment\_panel.csv --max-codes 60 --max-usd 8}
+    \item \textbf{Stacking 集成}：\texttt{python -m src.pipelines.run\_stacking\_experiment --input processed/hs300\_panel\_2024\_2025\_v2.csv --variants lgbm xgb ridge stacking --use-external-features}
+    \item \textbf{Conformal Prediction}：\texttt{python -m src.pipelines.run\_conformal\_experiment --input processed/hs300\_panel\_2024\_2025\_v2.csv --schemes baseline alpha\_scale candidate\_filter objective\_penalty --use-external-features}
+    \item \textbf{Numba 加速}：\texttt{python -m src.pipelines.benchmark\_engine}
     \item \textbf{五策略最终对比}：\texttt{python -m src.pipelines.final\_strategy\_comparison}
     \item \textbf{论文健康检查}：\texttt{python -m src.pipelines.check\_paper\_health}
     \item \textbf{论文图表生成}：\texttt{python -m src.pipelines.generate\_innovation\_charts}
 \end{itemize}
 
 \subsection{硬件与时间预算}
-所有实验均在 Apple Silicon M-series CPU 单机完成。完整 C1+C2+C3+C4 实验耗时约：建面板 40 分钟（akshare 限流是主因）、LLM 打分 5 分钟 / 0.31 USD、Stacking 1 分钟（不含 GRU）、Conformal 1 分钟、Numba 基准 30 秒。五策略对比脚本端到端 2.5 分钟。
+所有实验均在 Apple Silicon M-series CPU 单机完成。四项创新点的完整端到端实验耗时约：建面板 40 分钟（akshare 限流是主因）、LLM 打分 5 分钟 / 0.31 USD、Stacking 1 分钟（不含 GRU）、Conformal 1 分钟、Numba 基准 30 秒。五策略对比脚本端到端 2.5 分钟。
 
