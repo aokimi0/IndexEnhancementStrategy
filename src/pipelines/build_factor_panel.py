@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import argparse
+from pathlib import Path
 
 from src.config import ProjectConfig
 from src.data import AkshareClient, DataService, TushareClient
+from src.data.local_baostock_csv import HybridAkshareClient
 from src.factors import FactorEngine
 from src.utils.console import configure_console_output
 
@@ -41,19 +43,32 @@ def parse_args() -> argparse.Namespace:
         default=0,
         help="限制股票池数量，默认 0 表示不限制，便于先做小样本验证",
     )
+    parser.add_argument(
+        "--local-csv-dir",
+        default="",
+        help="离线 BaoStock CSV 目录（含 constituents/daily_valuation/quarterly_financials），"
+        "估值与财务走本地 CSV，其余仍用 akshare",
+    )
     return parser.parse_args()
 
 
-def build_client(data_source: str, config: ProjectConfig) -> AkshareClient | TushareClient:
+def build_client(
+    data_source: str,
+    config: ProjectConfig,
+    local_csv_dir: str = "",
+) -> AkshareClient | TushareClient | HybridAkshareClient:
     """根据参数创建数据客户端。
 
     Args:
         data_source: 数据源类型。
         config: 项目配置。
+        local_csv_dir: 离线 BaoStock CSV 目录；非空时使用混合客户端。
 
     Returns:
-        AkshareClient | TushareClient: 数据客户端实例。
+        AkshareClient | TushareClient | HybridAkshareClient: 数据客户端实例。
     """
+    if local_csv_dir:
+        return HybridAkshareClient(Path(local_csv_dir))
     if data_source == "akshare":
         return AkshareClient()
     if data_source == "tushare":
@@ -70,7 +85,7 @@ def main() -> None:
     config = ProjectConfig.from_root()
     config.ensure_directories()
 
-    client = build_client(args.data_source, config)
+    client = build_client(args.data_source, config, local_csv_dir=args.local_csv_dir)
     data_service = DataService(client=client, config=config)
     factor_engine = FactorEngine()
 
