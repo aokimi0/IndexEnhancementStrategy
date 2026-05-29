@@ -1,12 +1,11 @@
-"""端到端策略对照实验（论文 §5 终结性大对比表）。
+"""端到端策略对照实验（论文综合对比表）。
 
-在 ``data/processed/hs300_panel_2024_2025_v2.csv`` 面板上，对 5 种端到端策略做统一回测：
+在 ``data/processed/hs300_panel_2024_2025_v2.csv`` 面板上，对 4 种端到端策略做统一回测：
 
     1. ``baseline_equal``  多因子等权打分 + 等权 Top20（无 optimizer）
     2. ``lgbm_equal``      LightGBM 单模型 + 等权 Top20（无 optimizer）
     3. ``lgbm_opt``        LightGBM + ConstrainedPortfolioOptimizer
-    4. ``stacking_opt``    Stacking (LightGBM + XGBoost + Ridge) + ConstrainedPortfolioOptimizer
-    5. ``conformal_opt``   Split Conformal LightGBM + UncertaintyAwareOptimizer(objective_penalty, γ=0.1)
+    4. ``conformal_opt``   Split Conformal LightGBM + UncertaintyAwareOptimizer(objective_penalty, γ=0.1)
 
 特征统一为 ``value + quality + technical + liquidity + external`` 共 15 个因子（不含 sentiment）。
 测试区间 ``2024-07-01 ~ 2025-05-30``，前 6 月做训练，月度调仓、Top20、fee/slippage=0.001、
@@ -14,7 +13,7 @@
 
 输出：
 
-    * ``data/processed/final_strategy_comparison.csv`` —— 5 行对比指标。
+    * ``data/processed/final_strategy_comparison.csv`` —— 4 行对比指标。
     * ``data/processed/final_nav_<strategy>.csv``     —— 每种策略测试区间 NAV 序列。
 """
 
@@ -30,12 +29,7 @@ import pandas as pd
 from src.backtest import BaselineBacktestEngine, BaselineBacktestResult
 from src.backtest.metrics import compute_performance_metrics
 from src.factors import FactorEngine
-from src.models import (
-    LightgbmAlphaModel,
-    RidgeAlphaModel,
-    StackingAlphaModel,
-    XgboostAlphaModel,
-)
+from src.models import LightgbmAlphaModel
 from src.models.conformal_lightgbm import ConformalLightgbmModel
 from src.portfolio import ConstrainedPortfolioOptimizer, OptimizationConfig
 from src.portfolio.uncertainty_aware_optimizer import (
@@ -142,48 +136,7 @@ def main() -> None:
         )
     )
 
-    # Strategy 4: Stacking (LightGBM + XGBoost + Ridge) + Optimizer
-    print("\n[Model] 训练 Stacking (LGBM + XGB + Ridge) ...")
-    stacking_start = time.perf_counter()
-    stacking_pred = StackingAlphaModel(
-        l1_models=[
-            LightgbmAlphaModel(
-                feature_columns=feature_columns,
-                train_months=TRAIN_MONTHS,
-                min_train_rows=MIN_TRAIN_ROWS,
-            ),
-            XgboostAlphaModel(
-                feature_columns=feature_columns,
-                train_months=TRAIN_MONTHS,
-                min_train_rows=MIN_TRAIN_ROWS,
-            ),
-            RidgeAlphaModel(
-                feature_columns=feature_columns,
-                train_months=TRAIN_MONTHS,
-                min_train_rows=MIN_TRAIN_ROWS,
-            ),
-        ],
-        feature_columns=feature_columns,
-        train_months=TRAIN_MONTHS,
-        min_train_rows=MIN_TRAIN_ROWS,
-        meta_model="linear",
-        n_oof_splits=3,
-        n_jobs=4,
-    ).fit_predict(factor_panel)
-    print(f"[Model] Stacking 完成，用时 {time.perf_counter() - stacking_start:.1f}s")
-    stacking_panel = _merge_score(panel=factor_panel, prediction_frame=stacking_pred.prediction_frame)
-    metrics_rows.append(
-        _run_strategy(
-            name="stacking_opt",
-            merged_panel=stacking_panel,
-            feature_columns=feature_columns,
-            use_optimizer=True,
-            optimization_config=optimization_config,
-            optimizer_override=None,
-        )
-    )
-
-    # Strategy 5: Conformal LightGBM + UncertaintyAwareOptimizer(objective_penalty, γ=0.1)
+    # Strategy 4: Conformal LightGBM + UncertaintyAwareOptimizer(objective_penalty, γ=0.1)
     print("\n[Model] 训练 Conformal LightGBM ...")
     conformal_start = time.perf_counter()
     conformal_pred = ConformalLightgbmModel(

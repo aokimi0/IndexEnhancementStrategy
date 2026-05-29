@@ -164,7 +164,7 @@ class AlphaModelBase(ABC):
     def prepare(self, panel: pd.DataFrame) -> None:
         """对全量面板执行一次性预处理，默认无操作。
 
-        子类（如 :class:`GRUAlphaModel`）可在此构建特征序列等代价较高的缓存。
+        子类可在此构建特征序列等代价较高的缓存。
 
         Args:
             panel: 已经过 :func:`prepare_panel` 规范化的面板。
