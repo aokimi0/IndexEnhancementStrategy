@@ -1,0 +1,43 @@
+\contentsline {chapter}{\numberline {摘 要}{}}{I}{section*.1}%
+\contentsline {chapter}{\numberline {Abstract}{}}{II}{section*.2}%
+\contentsline {chapter}{\numberline {目 录}{}}{IV}{section*.3}%
+\contentsline {chapter}{\numberline {第\CJKnumber {1}章}绪论}{1}{chapter.1}%
+\contentsline {section}{\numberline {第\CJKnumber {1}节}研究背景与问题挑战}{1}{section.1.1}%
+\contentsline {section}{\numberline {第\CJKnumber {2}节}主要工作与贡献}{3}{section.1.2}%
+\contentsline {section}{\numberline {第\CJKnumber {3}节}论文组织结构}{3}{section.1.3}%
+\contentsline {chapter}{\numberline {第\CJKnumber {2}章}背景知识与相关工作}{6}{chapter.2}%
+\contentsline {section}{\numberline {第\CJKnumber {1}节}指数增强与组合优化的理论基础}{6}{section.2.1}%
+\contentsline {subsection}{\numberline {{2.1.1}}主动管理基本定律与传输系数}{6}{subsection.2.1.1}%
+\contentsline {subsection}{\numberline {{2.1.2}}多因子 alpha 信号与机器学习预测}{7}{subsection.2.1.2}%
+\contentsline {subsection}{\numberline {{2.1.3}}组合优化方法谱系与约束体系}{7}{subsection.2.1.3}%
+\contentsline {subsection}{\numberline {{2.1.4}}协方差估计与误差最大化}{8}{subsection.2.1.4}%
+\contentsline {section}{\numberline {第\CJKnumber {2}节}不确定性量化与 Conformal Prediction}{9}{section.2.2}%
+\contentsline {subsection}{\numberline {{2.2.1}}Conformal Prediction 框架与覆盖保证}{9}{subsection.2.2.1}%
+\contentsline {subsection}{\numberline {{2.2.2}}条件覆盖与代表性变体}{9}{subsection.2.2.2}%
+\contentsline {subsection}{\numberline {{2.2.3}}金融时序中的覆盖偏差与自适应 Conformal}{10}{subsection.2.2.3}%
+\contentsline {section}{\numberline {第\CJKnumber {3}节}本章小结}{10}{section.2.3}%
+\contentsline {chapter}{\numberline {第\CJKnumber {3}章}指数增强组合优化算法的设计与实现}{12}{chapter.3}%
+\contentsline {section}{\numberline {第\CJKnumber {1}节}系统整体框架}{12}{section.3.1}%
+\contentsline {section}{\numberline {第\CJKnumber {2}节}约束型多因子组合优化算法}{13}{section.3.2}%
+\contentsline {subsection}{\numberline {{3.2.1}}优化问题的形式化}{13}{subsection.3.2.1}%
+\contentsline {subsection}{\numberline {{3.2.2}}协方差估计与数值稳健性}{14}{subsection.3.2.2}%
+\contentsline {subsection}{\numberline {{3.2.3}}算法描述与复杂度}{15}{subsection.3.2.3}%
+\contentsline {section}{\numberline {第\CJKnumber {3}节}不确定性感知的组合优化扩展}{15}{section.3.3}%
+\contentsline {subsection}{\numberline {{3.3.1}}基于 Conformal Prediction 的置信度构造}{15}{subsection.3.3.1}%
+\contentsline {subsection}{\numberline {{3.3.2}}三种置信加权方案}{16}{subsection.3.3.2}%
+\contentsline {subsection}{\numberline {{3.3.3}}不确定性感知优化算法}{16}{subsection.3.3.3}%
+\contentsline {chapter}{\numberline {第\CJKnumber {4}章}实验与分析}{19}{chapter.4}%
+\contentsline {section}{\numberline {第\CJKnumber {1}节}实验环境与方案}{19}{section.4.1}%
+\contentsline {subsection}{\numberline {{4.1.1}}软硬件环境与数据集}{19}{subsection.4.1.1}%
+\contentsline {subsection}{\numberline {{4.1.2}}评价指标与实验方案}{19}{subsection.4.1.2}%
+\contentsline {section}{\numberline {第\CJKnumber {2}节}实验结果与分析}{20}{section.4.2}%
+\contentsline {subsection}{\numberline {{4.2.1}}约束组合优化算法的增益}{20}{subsection.4.2.1}%
+\contentsline {subsection}{\numberline {{4.2.2}}约束条件消融}{21}{subsection.4.2.2}%
+\contentsline {subsection}{\numberline {{4.2.3}}不确定性感知扩展的评估}{23}{subsection.4.2.3}%
+\contentsline {subsection}{\numberline {{4.2.4}}综合策略对比与稳健性}{26}{subsection.4.2.4}%
+\contentsline {section}{\numberline {第\CJKnumber {3}节}本章小结}{27}{section.4.3}%
+\contentsline {chapter}{\numberline {第\CJKnumber {5}章}总结与展望}{28}{chapter.5}%
+\contentsline {section}{\numberline {第\CJKnumber {1}节}工作总结}{28}{section.5.1}%
+\contentsline {section}{\numberline {第\CJKnumber {2}节}局限与未来展望}{29}{section.5.2}%
+\contentsline {chapter}{\numberline {致\hskip 1em\relax 谢}{}}{XXXI}{section*.23}%
+\contentsline {chapter}{\numberline {个人简历}{}}{XXXII}{section*.23}%

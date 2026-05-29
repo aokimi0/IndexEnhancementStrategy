@@ -31,7 +31,79 @@ IR = TC\cdot IC\cdot\sqrt{N},\qquad TC\in[0,1].
 
 \textbf{（二）不确定性感知的组合优化扩展。}针对挑战二，本文将 Split 与 Mondrian Conformal Prediction\cite{Vovk2005Conformal,Romano2019CQR,Angelopoulos2021Gentle} 引入组合优化：为每只股票的 alpha 预测构造具有有限样本边际覆盖保证的预测区间，并由区间半宽导出归一化置信度 $c_i$；进而设计 alpha 缩放、候选过滤与目标惩罚三种置信加权方案，将 $c_i$ 分别耦合进 QP 的目标项与可行域。本文对该扩展在 A 股的行为进行了系统评估，揭示出名义 $90\%$ 区间存在约 $9$ 个百分点的系统性低覆盖（且与显著性水平无关）与 ``高置信即过拟合'' 的反向规律，并通过简化的自适应 Conformal 推断模拟给出了矫正约 $80\%$ 覆盖偏差的可行路径。
 
-综上，本文的贡献在于把指数增强的核心组合优化算法做 ``深''：在数值稳健的约束优化基础上，进一步将具有理论保证的预测不确定性纳入优化，并以严谨的实证刻画其在 A 股低信噪比环境下的有效性边界与改进方向。本文使用的主要数学符号汇总于表~\ref{tab:symbols}。
+综上，本文的贡献在于把指数增强的核心组合优化算法做 ``深''：在数值稳健的约束优化基础上，进一步将具有理论保证的预测不确定性纳入优化，并以严谨的实证刻画其在 A 股低信噪比环境下的有效性边界与改进方向。图~\ref{fig:framework} 以三层研究框架的形式直观呈现上述工作的问题、内容与目标。
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[
+  hblue/.style ={draw=cblue1!55, fill=lblue1,   rounded corners=2pt,
+                 align=center, font=\small\bfseries,
+                 minimum width=2.8cm, minimum height=0.56cm},
+  hgreen/.style={draw=cgreen!80, fill=cgreen!35, rounded corners=2pt,
+                 align=center, font=\small\bfseries,
+                 minimum width=2.8cm, minimum height=0.56cm},
+  hgray/.style ={draw=black!35, fill=black!8,   rounded corners=2pt,
+                 align=center, font=\small\bfseries,
+                 minimum width=2.8cm, minimum height=0.56cm},
+  %% 问题框：固定高度 1.6cm，宽 3.0cm
+  pbox/.style={draw=black!35, rounded corners=3pt, align=center, fill=white,
+               text width=2.8cm, minimum height=1.6cm, font=\small},
+  %% 研究内容框：宽度加大至 4.4cm，减少折行
+  cbox/.style={draw=black!35, rounded corners=3pt, align=center, fill=white,
+               text width=4.2cm, minimum height=0.9cm, font=\small},
+  %% 目标框：大圆角矩形
+  tbox/.style={draw=black!35, rounded corners=14pt, align=center, fill=white,
+               text width=2.2cm, minimum height=2.0cm, font=\small},
+  arr/.style={-{Latex[length=2mm]}, thick, color=cblue1!65},
+]
+
+%% ── 列坐标：x = 2.0 / 7.2 / 12.2 ─────────────────────────
+%% ── 行坐标（中心）：y = -0.7 / -2.5 / -4.3 / -6.0 ─────────
+%%    构建层中心 -0.7；决策层两框分别 -2.5 / -4.3；执行层 -6.0
+
+%% ── 列标题 ─────────────────────────────────────────────────
+\node[hblue]  at (2.0,  0.5) {问题与挑战};
+\node[hgreen] at (7.2,  0.5) {研究内容};
+\node[hgray]  at (12.2, 0.5) {实现目标};
+
+%% ── 行标签 ─────────────────────────────────────────────────
+\node[font=\small, anchor=east] at (-0.1, -0.7) {构建层};
+\node[font=\small, anchor=east] at (-0.1, -3.4) {决策层};
+\node[font=\small, anchor=east] at (-0.1, -6.0) {执行层};
+
+%% ── 问题框 ─────────────────────────────────────────────────
+\node[pbox] (p1) at (2.0, -0.7) {因子来源单一，\\语义信息不足};
+\node[pbox] (p2) at (2.0, -3.4) {单模型鲁棒性有限，\\不确定性难进入\\组合优化};
+\node[pbox] (p3) at (2.0, -6.0) {回测计算耗时长，\\策略迭代效率受限};
+
+%% ── 研究内容框（四框，y 间距 1.7cm 保证不重叠）──────────────
+\node[cbox] (c1)  at (7.2, -0.7) {设计 LLM 舆情情感因子管线};
+\node[cbox] (c2a) at (7.2, -2.5) {构建异构 Stacking 集成\\LGB/XGB/GRU/Ridge $+$ MLP};
+\node[cbox] (c2b) at (7.2, -4.3) {设计 Conformal 置信加权组合优化\\（Split/Mondrian $+$ QP）};
+\node[cbox] (c3)  at (7.2, -6.0) {实现 Numba JIT $+$ joblib 并行回测引擎};
+
+%% ── 目标框 ─────────────────────────────────────────────────
+\node[tbox] (t1) at (12.2, -2.8) {稳健超额\\IR 提升、\\回撤收敛};
+\node[tbox] (t2) at (12.2, -5.5) {高效可复现\\CPU 友好、\\迭代加速};
+
+%% ── 箭头：问题 → 研究内容 ──────────────────────────────────
+\draw[arr] (p1.east) -- (c1.west);
+\draw[arr] (p2.east) -- (c2a.west);
+\draw[arr] (p2.east) -- (c2b.west);
+\draw[arr] (p3.east) -- (c3.west);
+
+%% ── 箭头：研究内容 → 目标 ──────────────────────────────────
+\draw[arr] (c1.east)  -- (t1.west);
+\draw[arr] (c2a.east) -- (t1.west);
+\draw[arr] (c2b.east) -- (t1.west);
+\draw[arr] (c3.east)  -- (t2.west);
+
+\end{tikzpicture}
+\caption{本文三层研究框架：问题与挑战、研究内容与实现目标}
+\label{fig:framework}
+\end{figure}
+
+本文使用的主要数学符号汇总于表~\ref{tab:symbols}。
 
 \begin{table}[htbp]
 \centering
@@ -149,32 +221,82 @@ CP 的覆盖保证以可交换性为前提，而金融时序数据天然违背�
 \centering
 \resizebox{\textwidth}{!}{%
 \begin{tikzpicture}[
-  box/.style={draw, rounded corners, align=center, text width=10.2cm, minimum height=0.82cm, font=\small},
-  core/.style={draw, rounded corners, align=center, text width=10.2cm, minimum height=0.82cm, font=\small, fill=black!6},
-  arr/.style={-{Latex[length=2.2mm]}, thick},
-  node distance=0.5cm,
+  %% 非核心层：浅蓝填充 + 深蓝字
+  bbox/.style={draw=cblue1!50, fill=lblue1, rounded corners=3pt,
+    align=center, text=black, font=\small\bfseries,
+    text width=9.6cm, minimum height=0.95cm, inner sep=5pt},
+  %% 核心算法层：浅橙填充 + 深橙字
+  cbox/.style={draw=corange2!60, fill=corange1, rounded corners=3pt,
+    align=center, text=black, font=\small\bfseries,
+    text width=9.6cm, minimum height=0.95cm, inner sep=5pt},
+  arr/.style={-{Latex[length=2.5mm]}, line width=1.2pt, color=black!45},
+  farr/.style={-{Latex[length=2.5mm]}, line width=1.0pt, dashed, color=black!35},
+  node distance=0.50cm,
 ]
-\node[box] (data) {数据层：\texttt{akshare} / \texttt{baostock} 行情、季度财务、宏观（北向、M2、利差）};
-\node[box, below=of data] (factor) {因子工程层：15 个因子 $\cdot$ MAD 缩尾 $\cdot$ 截面 Z-Score $\cdot$ 行业中性化};
-\node[box, below=of factor] (alpha) {Alpha 预测层：LightGBM 多因子模型 $\Rightarrow$ 截面 alpha 分数 $\hat\alpha$};
-\node[core, below=of alpha] (cp) {不确定性量化层：Split / Mondrian Conformal Prediction $\Rightarrow$ 置信度 $c_i$};
-\node[core, below=of cp] (opt) {组合优化层：约束二次规划（Ledoit-Wolf 协方差 $+$ 多面体约束 $+$ 置信加权）$\Rightarrow$ 权重 $w$};
-\node[box, below=of opt] (bt) {回测评估层：月度调仓 $+$ 双边交易成本 $\Rightarrow$ $IR$ / Sharpe / 最大回撤};
+
+%% ── 主流程节点 ───────────────────────────────────────────────
+\node[bbox] (data)
+  {数据层：\texttt{akshare} / \texttt{baostock}
+   行情、季度财务、宏观（北向、M2、利差）};
+
+\node[bbox, below=of data] (factor)
+  {因子工程层：15 个因子 $\cdot$ MAD 缩尾
+   $\cdot$ 截面 Z-Score $\cdot$ 行业中性化};
+
+\node[bbox, below=of factor] (alpha)
+  {Alpha 预测层：LightGBM 多因子模型
+   $\Rightarrow$ 截面 alpha 分数 $\hat{\alpha}$};
+
+\node[cbox, below=of alpha] (cp)
+  {不确定性量化层：Split / Mondrian Conformal Prediction
+   $\Rightarrow$ 置信度 $c_i$};
+
+\node[cbox, below=of cp] (opt)
+  {组合优化层：约束二次规划（Ledoit-Wolf 协方差
+   $+$ 多面体约束 $+$ 置信加权）$\Rightarrow$ 权重 $w$};
+
+\node[bbox, below=of opt] (bt)
+  {回测评估层：月度调仓 $+$ 双边交易成本
+   $\Rightarrow$ $IR$ / Sharpe / 最大回撤};
+
+%% ── 核心算法背景框（浅橙底 + 橙色虚线边）──────────────────
+\begin{scope}[on background layer]
+  \node[draw=corange2!50, dashed, line width=1.2pt,
+        rounded corners=5pt, fill=corange1!50,
+        fit=(cp)(opt), inner sep=0.30cm] (corebox) {};
+\end{scope}
+
+%% ── 主流程箭头 ──────────────────────────────────────────────
 \draw[arr] (data)--(factor);
 \draw[arr] (factor)--(alpha);
 \draw[arr] (alpha)--(cp);
 \draw[arr] (cp)--(opt);
 \draw[arr] (opt)--(bt);
-% 月度滚动反馈闭环：回测评估层 -> alpha 预测层
-\draw[arr, dashed] (bt.east) -- ++(0.6,0) |- (alpha.east);
-\node[anchor=west, font=\scriptsize, align=left] at ($(alpha.east)!0.5!(bt.east)+(0.72,0)$)
-  {月度滚动反馈：\\实现收益作为新标签\\重训 LightGBM、再校准 Conformal};
-\begin{scope}[on background layer]
-\node[draw, dashed, rounded corners, fit=(cp)(opt), inner sep=0.22cm] (corebox) {};
-\end{scope}
-\end{tikzpicture}%
-}
-\caption{指数增强系统整体架构（虚线框为本文核心算法；虚线箭头为月度滚动重训与再校准的反馈闭环）}
+
+%% ── 反馈闭环右侧：月度滚动重训 ──────────────────────────────
+\coordinate (br) at ($(bt.east)   +(1.5,0)$);
+\coordinate (ar) at ($(alpha.east)+(1.5,0)$);
+\draw[farr] (bt.east) -- (br)
+  -- node[right, font=\footnotesize\itshape,
+          text width=2.0cm, align=center, color=black!50]
+     {月度滚动\\重训}
+  (ar) -- (alpha.east);
+
+%% ── 反馈闭环左侧：下一调仓周期 ──────────────────────────────
+\coordinate (bl) at ($(bt.west)  +(-1.5,0)$);
+\coordinate (dl) at ($(data.west)+(-1.5,0)$);
+\draw[farr] (bt.west) -- (bl)
+  -- node[left, font=\footnotesize\itshape,
+          text width=2.2cm, align=center, color=black!50]
+     {下一调仓\\周期}
+  (dl) -- (data.west);
+
+%% ── 核心框右上角标注 ────────────────────────────────────────
+\node[font=\scriptsize\itshape, text=corange2!85, anchor=north east]
+  at (corebox.north east) {本文核心算法};
+
+\end{tikzpicture}
+\caption{指数增强系统整体架构（虚线框为本文核心算法，灰色虚线为闭环反馈路径）}
 \label{fig:arch}
 \end{figure}
 
