@@ -147,6 +147,7 @@ CP 的覆盖保证以可交换性为前提，而金融时序数据天然违背�
 
 \begin{figure}[htbp]
 \centering
+\resizebox{\textwidth}{!}{%
 \begin{tikzpicture}[
   box/.style={draw, rounded corners, align=center, text width=10.2cm, minimum height=0.82cm, font=\small},
   core/.style={draw, rounded corners, align=center, text width=10.2cm, minimum height=0.82cm, font=\small, fill=black!6},
@@ -164,15 +165,20 @@ CP 的覆盖保证以可交换性为前提，而金融时序数据天然违背�
 \draw[arr] (alpha)--(cp);
 \draw[arr] (cp)--(opt);
 \draw[arr] (opt)--(bt);
+% 月度滚动反馈闭环：回测评估层 -> alpha 预测层
+\draw[arr, dashed] (bt.east) -- ++(0.6,0) |- (alpha.east);
+\node[anchor=west, font=\scriptsize, align=left] at ($(alpha.east)!0.5!(bt.east)+(0.72,0)$)
+  {月度滚动反馈：\\实现收益作为新标签\\重训 LightGBM、再校准 Conformal};
 \begin{scope}[on background layer]
 \node[draw, dashed, rounded corners, fit=(cp)(opt), inner sep=0.22cm] (corebox) {};
 \end{scope}
-\end{tikzpicture}
-\caption{指数增强系统整体架构（虚线框为本文核心算法）}
+\end{tikzpicture}%
+}
+\caption{指数增强系统整体架构（虚线框为本文核心算法；虚线箭头为月度滚动重训与再校准的反馈闭环）}
 \label{fig:arch}
 \end{figure}
 
-在该框架中，本文的核心算法位于图~\ref{fig:arch} 的虚线框内，即不确定性量化层与组合优化层。alpha 预测层提供输入信号，回测评估层提供输出度量，二者为核心算法的设计与评估提供了完整的上下文。值得强调的是，alpha 预测层与组合优化层是\emph{解耦}的：优化算法只接收标准化的 alpha 分数与（可选的）置信度，而不依赖具体的预测模型，这使得算法可独立替换上游模型、便于消融与复用。
+在该框架中，本文的核心算法位于图~\ref{fig:arch} 的虚线框内，即不确定性量化层与组合优化层。alpha 预测层提供输入信号，回测评估层提供输出度量，二者为核心算法的设计与评估提供了完整的上下文。值得强调的是，该系统并非单向流水线，而是一个随市场状态持续自适应的\emph{闭环}：回测评估层产出的已实现收益并非流程终点，在月度滚动机制下，每个调仓周期新实现的超额收益会作为新标签反馈到 alpha 预测层与不确定性量化层（对应图~\ref{fig:arch} 中的虚线反馈箭头），驱动 LightGBM 在最新窗口上重训、Conformal 在最新校准残差上重新估计置信度，从而使预测与不确定性度量始终贴合近期的市场风格；这一反馈迭代机制也与第四章严格样本外实验揭示的 A 股强非平稳性相呼应。在此闭环之内，alpha 预测层与组合优化层又保持\emph{解耦}：优化算法只接收标准化的 alpha 分数与（可选的）置信度，而不依赖具体的预测模型，这使得算法可独立替换上游模型、便于消融与复用。
 
 为完整起见，本节先简述上游因子工程与 alpha 预测的设定。本文使用 15 个数值因子，按语义分为四组：价值（\texttt{ep\_ttm}、\texttt{bp}）、质量（\texttt{roe}、\texttt{grossprofitmargin}、\texttt{netprofitmargin}、\texttt{yoynetprofit}、\texttt{assetturnover}、\texttt{cfotoor}）、技术与微观结构（\texttt{ret\_20}、\texttt{ret\_60}、\texttt{volatility\_20}、\texttt{turnover\_20}）、外部宏观（\texttt{northbound\_net\_inflow}、\texttt{m2\_yoy}、\texttt{cn\_spread\_10y\_2y}）。每个因子在每个交易日截面上依次经过 MAD 缩尾（$k=3$）、Z-Score 标准化与行业中性化处理。预测标签采用相对沪深 300 的 20 日超额收益，以剥离系统性 Beta、聚焦截面 alpha。alpha 预测层采用固定超参数的 LightGBM（\texttt{n\_estimators=300}、\texttt{learning\_rate=0.05}、\texttt{num\_leaves=31}），以月度滚动方式重训。
 

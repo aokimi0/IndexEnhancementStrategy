@@ -241,10 +241,13 @@ def _load_nav(name: str) -> pd.DataFrame:
 
 
 def plot_long_horizon_nav() -> None:
-    """长周期组合净值对比（2015-2024，chart_01）。"""
-    baseline = _load_nav("baseline_nav_constrained_extended_2015_2024_v2.csv")
-    factor_only = _load_nav("lightgbm_nav_constrained_extended_2015_2024_v3.csv")
-    external = _load_nav("lightgbm_nav_external_2015_2024.csv")
+    """长周期组合净值对比（2015-2024，chart_01）。
+
+    数据为点位(point-in-time)成分 + 20 日 purge/embargo 去前瞻的诚实口径。
+    """
+    baseline = _load_nav("baseline_nav_pit_2015_2024.csv")
+    factor_only = _load_nav("lightgbm_nav_pit_leakfree_2015_2024.csv")
+    external = _load_nav("lightgbm_external_nav_pit_leakfree_2015_2024.csv")
 
     fig, ax = plt.subplots(figsize=(9.6, 4.8))
     for key, frame in (("baseline", baseline), ("factor_only", factor_only), ("external", external)):
@@ -296,10 +299,10 @@ def plot_long_horizon_excess_nav() -> None:
 
 
 def plot_long_horizon_drawdown() -> None:
-    """长周期回撤对比（chart_03）。"""
-    baseline = _load_nav("baseline_nav_constrained_extended_2015_2024_v2.csv")
-    factor_only = _load_nav("lightgbm_nav_constrained_extended_2015_2024_v3.csv")
-    external = _load_nav("lightgbm_nav_external_2015_2024.csv")
+    """长周期回撤对比（chart_03，点位 + 去前瞻口径）。"""
+    baseline = _load_nav("baseline_nav_pit_2015_2024.csv")
+    factor_only = _load_nav("lightgbm_nav_pit_leakfree_2015_2024.csv")
+    external = _load_nav("lightgbm_external_nav_pit_leakfree_2015_2024.csv")
 
     fig, ax = plt.subplots(figsize=(9.6, 4.8))
     for key, frame in (("baseline", baseline), ("factor_only", factor_only), ("external", external)):
