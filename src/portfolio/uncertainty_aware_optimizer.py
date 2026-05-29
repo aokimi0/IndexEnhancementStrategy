@@ -27,7 +27,12 @@ from src.portfolio.optimizer import (
 )
 
 
-WeightingScheme = Literal["alpha_scale", "candidate_filter", "objective_penalty"]
+WeightingScheme = Literal[
+    "alpha_scale",
+    "candidate_filter",
+    "objective_penalty",
+    "uncertainty_risk",
+]
 
 
 @dataclass(frozen=True)
@@ -41,6 +46,8 @@ class UncertaintyAwareConfig:
         gamma: ``objective_penalty`` 方案下的惩罚强度。
         confidence_column: 置信度列名。
         min_candidates: 候选过滤后保留的最少股票数，避免过度收缩。
+        risk_uncertainty_coef: ``uncertainty_risk`` 方案下预测方差并入风险项的系数 τ。
+        half_width_column: ``uncertainty_risk`` 方案下保形区间半宽列名。
     """
 
     weighting_scheme: WeightingScheme = "alpha_scale"
@@ -49,6 +56,8 @@ class UncertaintyAwareConfig:
     gamma: float = 0.1
     confidence_column: str = "confidence"
     min_candidates: int = 30
+    risk_uncertainty_coef: float = 1.0
+    half_width_column: str = "ci_half_width"
 
 
 class UncertaintyAwarePortfolioOptimizer(ConstrainedPortfolioOptimizer):
@@ -75,9 +84,11 @@ class UncertaintyAwarePortfolioOptimizer(ConstrainedPortfolioOptimizer):
             "alpha_scale",
             "candidate_filter",
             "objective_penalty",
+            "uncertainty_risk",
         ):
             raise ValueError(
-                "weighting_scheme 必须是 alpha_scale / candidate_filter / objective_penalty 之一"
+                "weighting_scheme 必须是 alpha_scale / candidate_filter / "
+                "objective_penalty / uncertainty_risk 之一"
             )
 
     def optimize(
@@ -152,6 +163,12 @@ class UncertaintyAwarePortfolioOptimizer(ConstrainedPortfolioOptimizer):
             return_history=return_history,
             codes=codes,
         )
+        if self.uncertainty_config.weighting_scheme == "uncertainty_risk":
+            covariance = self._augment_covariance_with_uncertainty(
+                covariance=covariance,
+                prepared=prepared,
+                working_snapshot=working_snapshot,
+            )
         alpha = prepared["alpha_score"].to_numpy(dtype=float)
         if self.uncertainty_config.weighting_scheme == "alpha_scale":
             alpha = alpha * np.power(confidence_vector, self.uncertainty_config.beta)
@@ -222,6 +239,53 @@ class UncertaintyAwarePortfolioOptimizer(ConstrainedPortfolioOptimizer):
             min(self.uncertainty_config.min_candidates, len(sorted_frame)),
         )
         return sorted_frame.iloc[:keep_count].reset_index(drop=True)
+
+    def _augment_covariance_with_uncertainty(
+        self,
+        covariance: np.ndarray,
+        prepared: pd.DataFrame,
+        working_snapshot: pd.DataFrame,
+    ) -> np.ndarray:
+        """将 Conformal 预测半宽的平方作为预测方差并入协方差对角。
+
+        贝叶斯/Black-Litterman 视角下，alpha 估计自带估计方差，半宽越大越不可信。
+        将其归一化到与协方差对角同量级后按系数 τ 加到对角，使优化器与跟踪误差约束
+        天然回避高不确定个股，且不会因量纲失配而压垮 TE 约束。
+
+        Args:
+            covariance: 原始（已修正半正定）协方差矩阵。
+            prepared: 已清洗并标准化的截面（决定股票顺序）。
+            working_snapshot: 含半宽列的工作截面。
+
+        Returns:
+            np.ndarray: 对角增广后的协方差矩阵。
+        """
+        half_width_column = self.uncertainty_config.half_width_column
+        if half_width_column not in working_snapshot.columns:
+            return covariance
+        half_width_map = dict(
+            zip(
+                working_snapshot["ts_code"].astype(str),
+                pd.to_numeric(working_snapshot[half_width_column], errors="coerce").astype(float),
+                strict=False,
+            )
+        )
+        half_width = (
+            prepared["ts_code"].astype(str).map(half_width_map).to_numpy(dtype=float)
+        )
+        median_hw = np.nanmedian(half_width)
+        if not np.isfinite(median_hw) or median_hw <= 0:
+            median_hw = 1.0
+        half_width = np.where(np.isfinite(half_width), half_width, median_hw)
+        predictive_variance = half_width**2
+        variance_mean = float(np.mean(predictive_variance))
+        if variance_mean <= 0:
+            return covariance
+        diag_mean = float(np.mean(np.diag(covariance)))
+        scaled_variance = predictive_variance / variance_mean * diag_mean
+        return covariance + np.diag(
+            self.uncertainty_config.risk_uncertainty_coef * scaled_variance
+        )
 
     def _solve_with_uncertainty_penalty(
         self,
