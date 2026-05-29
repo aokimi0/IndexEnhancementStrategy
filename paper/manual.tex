@@ -4,106 +4,34 @@
 
 \section{研究背景与问题挑战}
 
-随着被动投资的普及与资本市场机构化进程的推进，指数增强（Index Enhancement）策略日益受到机构与个人投资者的重视。该类策略介于完全被动的指数跟踪与完全主动的证券选择之间，其目标是在严格控制相对基准跟踪误差的前提下，系统性地获取稳定的超额收益，即所谓 ``Beta 稳健、Alpha 突出''。本文以中国 A 股市场的核心宽基基准——\textbf{沪深 300 指数}为实证标的，研究指数增强策略中核心量化算法的优化设计与实现。
+随着被动投资的普及与资本市场机构化进程的推进，兼具被动跟踪低成本与主动管理超额收益潜力的指数增强（Index Enhancement）策略日益受到机构与个人投资者的重视。该类策略介于完全被动的指数跟踪与完全主动的证券选择之间，目标是在严格控制相对基准跟踪误差的前提下系统性地获取稳定超额收益，即 ``Beta 稳健、Alpha 突出''。本文以中国 A 股核心宽基基准——\textbf{沪深 300 指数}为实证标的，研究指数增强策略中核心量化算法的优化设计与实现。
 
 指数增强在中国资产管理实践中的地位近年来持续上升，其驱动力来自供需两端。需求端，随着注册制改革深化与机构投资者占比提高，市场定价效率逐步增强，依赖单一因子或主观选股稳定获取超额收益的难度加大，促使从业者转向系统化、可复制的量化方法；同时，指数增强产品 ``跟踪基准、控制风险、稳定超额'' 的特征，契合养老金、保险等长期资金对风险预算的严格要求，成为公募与私募竞相布局的主流赛道。供给端，行情、财务与宏观数据的可得性提升与开源计算生态的成熟，使中小机构乃至个人研究者也能复现完整的策略链路。然而，A 股散户主导、错误定价频繁、风格切换剧烈，叠加融券受限等独特的监管与流动性约束，使得直接移植成熟市场的组合优化范式往往水土不服。因此，面向 A 股市场特征、对指数增强的核心算法做有针对性的优化设计与实现，兼具学术价值与现实意义，这正是本文的研究动机所在。
 
-从计算的视角看，一个完整的指数增强策略可抽象为两个串联环节：其一是\emph{信号生成}，即由多源因子预测个股的截面超额收益（alpha）；其二是\emph{组合构建}，即在给定 alpha 预测的条件下，求解一组满足风险与交易约束的可实施权重。前者本质上是一个有监督的截面回归问题，后者则是一个带约束的数学规划问题。本文研究的核心，正是第二个环节——\textbf{带约束的组合优化算法}，因为它直接决定了预测信号能在多大程度上、以多稳健的方式转化为真实可交易的主动头寸：再精准的 alpha 信号，若不能在风控与交易约束下被高效、稳健地转化为权重，也无法兑现为可实现的超额收益。与广度优先、堆叠多个异构模块的做法不同，本文选择对这一核心算法做深度的优化设计与实现，力求把单一算法的数值稳健性与不确定性建模做透，这也正是论文标题 ``量化算法优化设计与实现'' 的题中之义。
+从计算视角看，一个完整的指数增强策略可抽象为两个串联环节：其一是\textbf{信号生成}（由多源因子预测个股截面超额收益 alpha），其二是\textbf{组合构建}（在给定 alpha 预测下求解满足风险与交易约束的可实施权重）。前者是有监督的截面回归问题，后者是带约束的数学规划问题。本文研究的核心是第二个环节——\textbf{带约束的组合优化算法}，因为它直接决定预测信号能在多大程度上、以多稳健的方式转化为真实可交易的主动头寸：再精准的 alpha 信号，若不能在风控与交易约束下被高效、稳健地转化为权重，也无法兑现为可实现的超额收益。与广度优先、堆叠多个异构模块的做法不同，本文选择对这一核心算法做深度优化设计与实现，力求把单一算法的稳健性与不确定性建模做透，这也正是论文标题 ``量化算法优化设计与实现'' 的题中之义。
 
-组合优化在指数增强中的核心地位，可由主动管理基本定律精确刻画。Grinold\cite{Grinold1989} 将信息比率（$IR$）分解为预测能力（$IC$）与投资广度（$N$）的乘积 $IR = IC\cdot\sqrt{N}$；Clarke 等\cite{Clarke2002} 进一步引入传输系数（Transfer Coefficient，$TC$），将其修正为
-\[
+组合优化的核心地位可由主动管理基本定律精确刻画。Grinold\cite{Grinold1989} 将信息比率分解为 $IR = IC\cdot\sqrt{N}$；Clarke 等\cite{Clarke2002} 引入传输系数（Transfer Coefficient，$TC$）将其修正为
+\begin{equation}
 IR = TC\cdot IC\cdot\sqrt{N},\qquad TC\in[0,1].
-\]
-其中 $TC$ 度量了组合优化器将理论 alpha 信号 ``传输'' 为实际主动权重的效率。禁止卖空、行业中性、跟踪误差上限与换手率上限等现实约束会系统性地压低 $TC$\cite{Grinold2000,Ding2017}。因此，\emph{在严苛的多面体约束空间内构造一个使 $TC$ 最大化、且数值稳健的优化算法}，构成了指数增强策略落地的核心难题。
+\end{equation}
+其中 $TC$ 度量组合优化器将理论 alpha 信号 ``传输'' 为实际主动权重的效率。禁止卖空、行业中性、跟踪误差上限与换手率上限等现实约束会系统性压低 $TC$\cite{Grinold2000,Ding2017}。因此，\textbf{在严苛的多面体约束空间内构造一个使 $TC$ 最大化、且数值稳健的优化算法}，构成指数增强策略落地的核心难题。
 
-在 A 股市场，这一难题面临两重叠加的挑战，分别出现在优化算法的 ``求解'' 与 ``输入'' 两个层面。
+在 A 股，这一难题面临两重叠加挑战，分别出现在优化算法的 ``求解'' 与 ``输入'' 两个层面：
 
-\textbf{挑战一（求解层面）：协方差病态与 ``误差最大化''。}组合优化的风险项依赖于个股收益协方差矩阵 $\Sigma$ 的估计。当资产数（沪深 300 约 300 只）与估计窗口长度相当时，样本协方差矩阵呈病态，其条件数极大、最小特征值接近零甚至因数值原因为负。Michaud\cite{Michaud1989} 指出，直接使用此类矩阵的均值-方差优化器会把估计噪声当作真实信号，倾向于在被高估收益与被低估风险的资产上给出极端权重，即 ``误差最大化''（Error Maximization），其后果是解对输入的微小扰动高度敏感、样本外表现急剧恶化。更棘手的是，长周期回测需在数千个调仓日上连续求解，任一期的病态或求解失败都会沿净值链路累积。如何在估计层面抑制病态、在求解层面保证数值稳健且不中断，是优化算法必须解决的工程问题。
+\textbf{挑战一（求解层面）：协方差病态与 ``误差最大化''。}组合优化的风险项依赖个股收益协方差矩阵 $\Sigma$ 的估计。当资产数（沪深 300 约 300 只）与估计窗口长度相当时，样本协方差矩阵呈病态——条件数极大、最小特征值接近零甚至因数值原因为负。Michaud\cite{Michaud1989} 指出，直接使用此类矩阵的均值-方差优化器会把估计噪声当作真实信号、在被高估收益与被低估风险的资产上给出极端权重，即 ``误差最大化''，其后果是解对输入的微小扰动高度敏感、样本外表现急剧恶化。更棘手的是，长周期回测需在数千个调仓日上连续求解，任一期的病态或求解失败都会沿净值链路累积。如何在估计层抑制病态、在求解层保证数值稳健且不中断，是优化算法必须解决的工程问题。
 
-\textbf{挑战二（输入层面）：低信噪比下的预测不确定性。}A 股以散户交易为主、错误定价频繁、风格切换剧烈，截面 alpha 预测的信噪比极低且高度非平稳。传统组合优化器只接收 alpha 的\emph{点预测}，默认所有个股的预测同等可信，完全忽略了不同个股之间预测可信度的差异。在低信噪比环境下，这种 ``一视同仁'' 会让优化器把大量权重押注在高方差、低可信度的预测上，放大噪声、侵蚀稳健性。因此，如何为 alpha 预测附加一个有理论保证的不确定性度量，并将其有机地纳入优化的目标与可行域，是提升策略稳健性的关键，也是当前点预测式组合优化普遍缺失的一环。
+\textbf{挑战二（输入层面）：低信噪比下的预测不确定性。}A 股以散户交易为主、错误定价频繁、风格切换剧烈，截面 alpha 预测的信噪比极低且高度非平稳。传统优化器只接收 alpha 的\emph{点预测}，默认所有个股同等可信，完全忽略了个股间预测可信度的差异；在低信噪比环境下，这种 ``一视同仁'' 会让优化器把大量权重押注在高方差、低可信度的预测上，放大噪声、侵蚀稳健性。如何为 alpha 预测附加一个有理论保证的不确定性度量，并将其有机地纳入优化的目标与可行域，是提升策略稳健性的关键，也是当前点预测式组合优化普遍缺失的一环。
 
 \section{主要工作与贡献}
 \label{sec:contributions}
 
-针对上述挑战，本文围绕指数增强的核心组合优化算法展开优化设计与实现。两项主要工作与两重挑战一一对应——前者针对挑战一夯实优化算法的数值稳健性，后者针对挑战二将预测可信度纳入优化。
+针对上述两重挑战，本文围绕指数增强的核心组合优化算法展开优化设计与实现。两项主要工作与两重挑战一一对应——前者针对挑战一夯实优化算法的数值稳健性，后者针对挑战二将预测可信度纳入优化：
 
-\textbf{（一）面向 A 股的约束型多因子组合优化算法。}本文以 LightGBM\cite{Ke2017LightGBM} 多因子模型输出截面 alpha 信号，针对挑战一，采用 Ledoit-Wolf 缩减估计\cite{Ledoit2004} 抑制样本协方差病态，并在求解层附加最小特征值修正以保证半正定；在此基础上构建以 alpha 收益、风险惩罚与换手惩罚为目标、以跟踪误差、行业偏离、单股权重与换手率为约束的二次规划（QP），并设计 OSQP$\to$CLARABEL$\to$SCS 三级求解器回退机制保证数值鲁棒性。该算法将信息比率由静态多因子的 0.237 提升至 2.449。
+\textbf{（一）面向 A 股的约束型多因子组合优化算法。}以 LightGBM\cite{Ke2017LightGBM} 多因子模型输出截面 alpha；针对挑战一，采用 Ledoit-Wolf 缩减估计\cite{Ledoit2004} 抑制协方差病态，并在求解层附加最小特征值修正保证半正定；构建以 alpha 收益、风险惩罚与换手惩罚为目标、以跟踪误差/行业偏离/单股权重/换手率为约束的二次规划，设计 OSQP$\to$CLARABEL$\to$SCS 三级求解器回退。在严格的点位成分与去前瞻口径下，该算法将长周期静态多因子基线的信息比率由 $-0.99$ 提升至 $+0.20$。
 
-\textbf{（二）不确定性感知的组合优化扩展。}针对挑战二，本文将 Split 与 Mondrian Conformal Prediction\cite{Vovk2005Conformal,Romano2019CQR,Angelopoulos2021Gentle} 引入组合优化：为每只股票的 alpha 预测构造具有有限样本边际覆盖保证的预测区间，并由区间半宽导出归一化置信度 $c_i$；进而设计 alpha 缩放、候选过滤与目标惩罚三种置信加权方案，将 $c_i$ 分别耦合进 QP 的目标项与可行域。本文对该扩展在 A 股的行为进行了系统评估，揭示出名义 $90\%$ 区间存在约 $9$ 个百分点的系统性低覆盖（且与显著性水平无关）与 ``高置信即过拟合'' 的反向规律，并通过简化的自适应 Conformal 推断模拟给出了矫正约 $80\%$ 覆盖偏差的可行路径。
+\textbf{（二）不确定性感知的组合优化扩展。}针对挑战二，引入 Split 与 Mondrian Conformal Prediction\cite{Vovk2005Conformal,Romano2019CQR,Angelopoulos2021Gentle}，为每只股票 alpha 预测构造具有有限样本边际覆盖保证的预测区间，并由区间半宽导出归一化置信度 $c_i$。考虑到 A 股低信噪比环境下 Conformal 覆盖不足、置信度与收益倒挂（名义 $90\%$ 区间实测覆盖仅约 $63\%$，最低置信桶收益反而最高），本文不直接按置信度逐股加权，而提出两种稳健方案：把预测半宽作风险并入协方差的不确定性风险项，以及以 Conformal 覆盖率本身门控 ``信任 ML/退向稳健分散'' 比例的信度门控稳健混合。在 2024--2025 短样本的严格去前瞻口径下，二者将不加权约束优化器的信息比率由 $-0.15$ 稳定提升至 $+0.50$、$+0.34$（前者 5 个随机种子全部由负转正），实现了不确定性感知扩展对同口径基线的稳定超越。
 
-综上，本文的贡献在于把指数增强的核心组合优化算法做 ``深''：在数值稳健的约束优化基础上，进一步将具有理论保证的预测不确定性纳入优化，并以严谨的实证刻画其在 A 股低信噪比环境下的有效性边界与改进方向。图~\ref{fig:framework} 以三层研究框架的形式直观呈现上述工作的问题、内容与目标。
-
-\begin{figure}[htbp]
-\centering
-\begin{tikzpicture}[
-  hblue/.style ={draw=cblue1!55, fill=lblue1,   rounded corners=2pt,
-                 align=center, font=\small\bfseries,
-                 minimum width=2.8cm, minimum height=0.56cm},
-  hgreen/.style={draw=cgreen!80, fill=cgreen!35, rounded corners=2pt,
-                 align=center, font=\small\bfseries,
-                 minimum width=2.8cm, minimum height=0.56cm},
-  hgray/.style ={draw=black!35, fill=black!8,   rounded corners=2pt,
-                 align=center, font=\small\bfseries,
-                 minimum width=2.8cm, minimum height=0.56cm},
-  %% 问题框：固定高度 1.6cm，宽 3.0cm
-  pbox/.style={draw=black!35, rounded corners=3pt, align=center, fill=white,
-               text width=2.8cm, minimum height=1.6cm, font=\small},
-  %% 研究内容框：宽度加大至 4.4cm，减少折行
-  cbox/.style={draw=black!35, rounded corners=3pt, align=center, fill=white,
-               text width=4.2cm, minimum height=0.9cm, font=\small},
-  %% 目标框：大圆角矩形
-  tbox/.style={draw=black!35, rounded corners=14pt, align=center, fill=white,
-               text width=2.2cm, minimum height=2.0cm, font=\small},
-  arr/.style={-{Latex[length=2mm]}, thick, color=cblue1!65},
-]
-
-%% ── 列坐标：x = 2.0 / 7.2 / 12.2 ─────────────────────────
-%% ── 行坐标（中心）：y = -0.7 / -2.5 / -4.3 / -6.0 ─────────
-%%    构建层中心 -0.7；决策层两框分别 -2.5 / -4.3；执行层 -6.0
-
-%% ── 列标题 ─────────────────────────────────────────────────
-\node[hblue]  at (2.0,  0.5) {问题与挑战};
-\node[hgreen] at (7.2,  0.5) {研究内容};
-\node[hgray]  at (12.2, 0.5) {实现目标};
-
-%% ── 行标签 ─────────────────────────────────────────────────
-\node[font=\small, anchor=east] at (-0.1, -0.7) {构建层};
-\node[font=\small, anchor=east] at (-0.1, -3.4) {决策层};
-\node[font=\small, anchor=east] at (-0.1, -6.0) {执行层};
-
-%% ── 问题框 ─────────────────────────────────────────────────
-\node[pbox] (p1) at (2.0, -0.7) {因子来源单一，\\语义信息不足};
-\node[pbox] (p2) at (2.0, -3.4) {单模型鲁棒性有限，\\不确定性难进入\\组合优化};
-\node[pbox] (p3) at (2.0, -6.0) {回测计算耗时长，\\策略迭代效率受限};
-
-%% ── 研究内容框（四框，y 间距 1.7cm 保证不重叠）──────────────
-\node[cbox] (c1)  at (7.2, -0.7) {设计 LLM 舆情情感因子管线};
-\node[cbox] (c2a) at (7.2, -2.5) {构建异构 Stacking 集成\\LGB/XGB/GRU/Ridge $+$ MLP};
-\node[cbox] (c2b) at (7.2, -4.3) {设计 Conformal 置信加权组合优化\\（Split/Mondrian $+$ QP）};
-\node[cbox] (c3)  at (7.2, -6.0) {实现 Numba JIT $+$ joblib 并行回测引擎};
-
-%% ── 目标框 ─────────────────────────────────────────────────
-\node[tbox] (t1) at (12.2, -2.8) {稳健超额\\IR 提升、\\回撤收敛};
-\node[tbox] (t2) at (12.2, -5.5) {高效可复现\\CPU 友好、\\迭代加速};
-
-%% ── 箭头：问题 → 研究内容 ──────────────────────────────────
-\draw[arr] (p1.east) -- (c1.west);
-\draw[arr] (p2.east) -- (c2a.west);
-\draw[arr] (p2.east) -- (c2b.west);
-\draw[arr] (p3.east) -- (c3.west);
-
-%% ── 箭头：研究内容 → 目标 ──────────────────────────────────
-\draw[arr] (c1.east)  -- (t1.west);
-\draw[arr] (c2a.east) -- (t1.west);
-\draw[arr] (c2b.east) -- (t1.west);
-\draw[arr] (c3.east)  -- (t2.west);
-
-\end{tikzpicture}
-\caption{本文三层研究框架：问题与挑战、研究内容与实现目标}
-\label{fig:framework}
-\end{figure}
-
-本文使用的主要数学符号汇总于表~\ref{tab:symbols}。
+综上，本文的贡献在于：在数值稳健的约束优化基础上，进一步将具有理论保证的预测不确定性纳入指数增强的核心组合优化，并以严谨的实证刻画其在 A 股低信噪比环境下的有效性边界与改进方向。本文使用的主要数学符号汇总于表~\ref{tab:symbols}。
 
 \begin{table}[htbp]
 \centering
@@ -121,7 +49,8 @@ $\lambda,\ \kappa$ & 风险厌恶系数、换手惩罚系数 \\
 $\sigma_{TE}$ & 年化跟踪误差上限 \\
 $\alpha_{\text{CP}},\ q_{\alpha}$ & Conformal 显著性水平、校准残差分位数（区间半宽） \\
 $c_i$ & 第 $i$ 只股票的归一化 Conformal 置信度 \\
-$\beta,\ \gamma,\ p_{\text{top}}$ & 三种置信加权方案的参数 \\
+$\beta,\ p_{\text{top}},\ \gamma,\ \tau$ & 置信加权与不确定性风险方案的参数 \\
+$g_t$ & 第 $t$ 期由 Conformal 覆盖率导出的模型信任度 \\
 $\rho$ & 校准集占训练样本的比例 \\
 $n_d,\ n_s$ & 回测面板的交易日数与股票数 \\
 \bottomrule
@@ -136,30 +65,30 @@ $n_d,\ n_s$ & 回测面板的交易日数与股票数 \\
 
 第二章为背景知识与相关工作，沿两条线索展开：其一是指数增强与组合优化的理论基础，包括主动管理基本定律与传输系数、多因子与机器学习预测、组合优化方法谱系与约束体系、以及协方差估计与误差最大化；其二是不确定性量化与 Conformal Prediction 的框架、覆盖保证、条件覆盖变体及其在金融时序中的偏差与自适应改进。
 
-第三章为本文核心，先给出系统整体框架与架构图，明确核心算法在系统中的位置；继而详述约束型多因子组合优化算法的形式化、协方差处理与求解机制，并以伪代码和复杂度分析严格表达；最后给出其不确定性感知扩展，包括基于 Conformal Prediction 的置信度构造与三种置信加权方案。
+第三章为本文核心，先给出系统整体框架与架构图，明确核心算法在系统中的位置；继而详述约束型多因子组合优化算法的形式化、协方差处理与求解机制，并以伪代码和复杂度分析严格表达；最后给出其不确定性感知扩展，包括基于 Conformal Prediction 的置信度构造、不确定性风险项与信度门控稳健混合两种稳健方案。
 
-第四章为实验与分析，先交代实验环境、数据集与评价指标，再在长周期（2015--2024）与短周期（2024--2025）两条样本上，通过与基线及消融的对比，论证约束优化算法的增益与不确定性感知扩展的行为，并辅以传输系数、严格样本外与随机种子等稳健性检验。
+第四章为实验与分析，先交代实验环境、数据集与评价指标，再在长周期（2015--2024，点位成分 $+$ 去前瞻口径）样本上通过与基线及约束消融的对比论证约束优化算法的增益，并在 2024--2025 短样本上验证不确定性感知扩展相对同口径不加权优化器的稳定超越。
 
 第五章为总结与展望，归纳本文的主要工作与结论，并讨论当前工作的局限与未来的改进方向。
 
 \chapter{背景知识与相关工作}
 
-本章系统梳理本文核心算法所依托的理论与相关工作。第~\ref{sec:bg_po} 节围绕指数增强的组合优化展开，自上而下讨论主动管理基本定律所揭示的优化目标、上游多因子信号的生成、组合优化方法的谱系与约束体系、以及作为优化输入的协方差估计与 ``误差最大化'' 问题；第~\ref{sec:bg_cp} 节围绕本文用以刻画预测可信度的工具，介绍 Conformal Prediction 的框架与覆盖保证、其条件覆盖变体、以及在金融时序中的覆盖偏差与自适应改进。两节分别对应绪论中提出的两重挑战。
+本章系统梳理本文核心算法所依托的理论与相关工作。\ref{sec:bg_po}围绕指数增强的组合优化展开，自上而下讨论主动管理基本定律所揭示的优化目标、上游多因子信号的生成、组合优化方法的谱系与约束体系、以及作为优化输入的协方差估计与 ``误差最大化'' 问题；\ref{sec:bg_cp}围绕本文用以刻画预测可信度的工具，介绍 Conformal Prediction 的框架与覆盖保证、其条件覆盖变体、以及在金融时序中的覆盖偏差与自适应改进。两节分别对应绪论中提出的两重挑战。
 
 \section{指数增强与组合优化的理论基础}
 \label{sec:bg_po}
 
 \subsection{主动管理基本定律与传输系数}
 主动管理的数学基础由 Grinold\cite{Grinold1989} 提出的基本定律（Fundamental Law of Active Management）奠定。其将信息比率分解为单次预测能力与独立投注次数的乘积
-\[
+\begin{equation}
 IR = IC\cdot\sqrt{N},
-\]
-其中信息系数 $IC$ 度量预测值与实际收益的截面相关性，投资广度 $N$ 为每年相互独立的投注次数。该定律的直观含义是：主动管理者既可通过提高单次预测的准确度（深度），也可通过增加相互独立的投注次数（广度）来提升风险调整后收益。然而原始定律隐含两条强假设——各次投注相互独立、且预测能力恒定，二者在现实中均难成立。Ding 与 Martin\cite{Ding2017} 指出，当资产残差存在相关、且截面 $IC$ 随时间波动时，有效广度远小于名义资产数，盲目套用原始定律会系统性高估实盘 $IR$。
+\end{equation}
+其中信息系数 $IC$ 度量预测值与实际收益的截面相关性，投资广度 $N$ 为每年相互独立的投注次数。该定律的直观含义是：主动管理者既可通过提高单次预测的准确度（深度）、也可通过增加相互独立的投注次数（广度）来提升风险调整后收益。然而原始定律隐含两条强假设——各次投注相互独立、且预测能力恒定，二者在现实中均难成立。Ding 与 Martin\cite{Ding2017} 指出，当资产残差存在相关、且截面 $IC$ 随时间波动时，有效广度远小于名义资产数，盲目套用原始定律会系统性高估实盘 $IR$。
 
 更关键的是，原始定律默认 alpha 信号可被无摩擦地转化为主动头寸，而真实组合受禁止卖空、跟踪误差、行业与换手等约束限制。为刻画这一缺口，Clarke 等\cite{Clarke2002} 引入传输系数（Transfer Coefficient，$TC$），将基本定律推广为
-\[
+\begin{equation}
 IR = TC\cdot IC\cdot\sqrt{N},\qquad TC\in[0,1].
-\]
+\end{equation}
 $TC$ 定义为经风险调整后的主动权重与 alpha 预测之间的截面相关系数，度量了优化器把 ``纸面信号'' 传输为 ``实际头寸'' 的效率。实证研究表明，仅禁止卖空一项即可使 $TC$ 由理想的 $1$ 降至约 $0.5\!\sim\!0.6$，叠加行业中性与换手限制后更低。Grinold 与 Kahn\cite{Grinold2000} 的经典教材进一步将该框架系统化为现代主动管理的方法学基础。这一推广具有重要的方法论意义：在信号质量（$IC$）与广度（$N$）给定的前提下，\textbf{指数增强策略的绩效高度依赖于组合优化器对 $TC$ 的最大化能力}，从而把策略落地的核心问题从 ``预测'' 转移到了 ``约束下的最优传输''，这正是本文聚焦组合优化算法的根本动因。
 
 \subsection{多因子 alpha 信号与机器学习预测}
@@ -170,15 +99,15 @@ $TC$ 定义为经风险调整后的主动权重与 alpha 预测之间的截面�
 \subsection{组合优化方法谱系与约束体系}
 给定 alpha 信号后，组合构建方法可大致归为四类。其一是\textbf{被动加权法}，如等权与市值加权，不使用预测信息，仅作为基准或对照；其二是\textbf{风险导向法}，如风险平价，仅依据协方差分配风险预算而忽略 alpha；其三是\textbf{均值-方差优化}，由 Markowitz 奠基，在收益与方差之间权衡，是现代组合理论的核心；其四是在均值-方差框架上施加现实约束的\textbf{带约束二次规划}，它是指数增强策略的主流形式。指数增强与一般主动管理的根本区别在于其以\emph{相对基准}的主动收益与主动风险为优化对象，因而其目标函数与约束均围绕主动权重 $w-w_b$ 构造。
 
-约束体系是指数增强组合优化的灵魂，每一项约束都对应明确的金融含义，同时以可控的 $TC$ 损失换取可实施性：跟踪误差上限限制组合相对基准的偏离幅度，是 ``增强'' 区别于 ``主动选股'' 的定义性特征；行业中性约束避免非预期的行业暴露，使超额收益尽量来自个股 alpha 而非行业择时；单股权重上限保证分散度并满足流动性与监管要求；换手率上限控制交易成本、避免高频再平衡侵蚀收益；而禁止卖空则反映了 A 股融券机制受限的现实约束。这些约束共同将可行域收缩为一个多面体与椭球的交集，优化器须在其中寻找使 $TC$ 最大化的解。传输系数理论预示了一个关键权衡：约束越严格，可实施性越强，但传输效率 $TC$ 越低；如何在二者间取得最优折衷，是约束型组合优化算法设计的中心问题，本文将在第四章通过约束消融实验对此做定量考察。
+约束体系是指数增强组合优化的灵魂，每一项约束都对应明确的金融含义，同时以可控的 $TC$ 损失换取可实施性：跟踪误差上限限制组合相对基准的偏离幅度，是 ``增强'' 区别于 ``主动选股'' 的定义性特征；行业中性约束避免非预期的行业暴露，使超额收益尽量来自个股 alpha 而非行业择时；单股权重上限保证分散度并满足流动性与监管要求；换手率上限控制交易成本、避免高频再平衡侵蚀收益；而禁止卖空则反映了 A 股融券机制受限的现实约束。这些约束共同将可行域收缩为一个多面体与椭球的交集，优化器须在其中寻找使 $TC$ 最大化的解。\ref{sec:bg_po}的传输系数理论预示了一个关键权衡：约束越严格，可实施性越强，但传输效率 $TC$ 越低；如何在二者间取得最优折衷，是约束型组合优化算法设计的中心问题，本文将在第四章通过约束消融实验对此做定量考察。
 
 \subsection{协方差估计与误差最大化}
 均值-方差与带约束二次规划均依赖个股收益协方差矩阵 $\Sigma$ 的估计，而 $\Sigma$ 的质量直接决定优化解的稳定性。当资产数 $n$ 与估计窗口长度 $T$ 相当（如 $n\approx 300$、$T\approx 60$）时，样本协方差矩阵呈病态：其条件数极大，最小特征值接近零甚至因数值原因为负。Michaud\cite{Michaud1989} 将基于此类矩阵的优化称为 ``误差最大化''（Error Maximization）——优化器把估计噪声当作真实信号，倾向于在被高估收益、被低估风险的资产上给出极端权重，导致解对输入的微小扰动高度敏感、样本外表现急剧恶化。
 
 针对这一问题，协方差估计发展出若干谱系：\textbf{样本协方差}简单但病态；\textbf{因子模型协方差}（如基于 Fama-French 或统计因子）通过低秩结构降维，但依赖因子设定的正确性；\textbf{随机矩阵理论去噪}对样本协方差的特征值谱做修正；\textbf{线性收缩估计}则在样本协方差 $S$ 与一个结构化目标矩阵 $F$（如缩放单位阵或常相关模型）之间做凸组合
-\[
+\begin{equation}
 \hat\Sigma = \delta F + (1-\delta)\,S,
-\]
+\end{equation}
 并以最小化期望 Frobenius 损失 $\mathbb{E}\lVert\hat\Sigma-\Sigma\rVert_F^2$ 的最优强度 $\delta^{*}$ 自适应确定收缩程度。Ledoit 与 Wolf\cite{Ledoit2004} 给出了 $\delta^{*}$ 的可由数据一致估计的闭式表达。从优化的视角看，收缩压缩了特征值谱的离散度、抬升了最小特征值，从而显著改善矩阵的条件数与正定性，缓解了误差最大化。本文在估计层采用 Ledoit-Wolf 缩减，并在求解层进一步施加最小特征值修正（对负或过小特征值加 ridge 项）以严格保证求解器所需的半正定性，二者共同应对绪论中提出的挑战一。
 
 \section{不确定性量化与 Conformal Prediction}
@@ -188,9 +117,9 @@ $TC$ 定义为经风险调整后的主动权重与 alpha 预测之间的截面�
 传统组合优化只接收 alpha 的点预测，无法表达不同个股预测可信度的差异。为在弱假设下量化预测不确定性，本文采用 Vovk 等\cite{Vovk2005Conformal} 提出的 Conformal Prediction（CP）。CP 的核心是为每个候选标签定义一个不符合度得分（nonconformity score），并据校准数据将测试样本的预测扩展为一个集合或区间。其最重要的性质是：在仅假设数据\emph{可交换性}（exchangeability，弱于独立同分布）的条件下，CP 区间即具有\emph{有限样本边际覆盖保证}。
 
 实践中以分裂式 Conformal（Split / Inductive CP）最为高效：将训练数据划分为建模子集与校准子集，模型在建模子集上拟合后，在容量为 $n$ 的校准子集上计算保形得分 $s_i = |y_i - \hat y_i|$；取其经 Vovk 修正的分位数 $q_\alpha$（分位水平 $\lceil (n+1)(1-\alpha)\rceil / n$），则测试样本的预测区间为 $[\hat y - q_\alpha,\ \hat y + q_\alpha]$。可证明在可交换性下其满足
-\[
+\begin{equation}
 1-\alpha \;\le\; \mathbb{P}\big(Y\in C(X)\big) \;\le\; 1-\alpha + \tfrac{1}{n+1}.
-\]
+\end{equation}
 该保证不依赖底层模型的正确性与数据分布的具体形式，且仅需一次模型拟合，计算开销极低。Angelopoulos 与 Bates\cite{Angelopoulos2021Gentle} 系统梳理了 CP 在分类与回归任务上的实践范式。本文正是利用 Split CP 的区间半宽来导出个股置信度，作为组合优化的不确定性输入。
 
 \subsection{条件覆盖与代表性变体}
@@ -201,7 +130,7 @@ Split CP 提供的是\emph{边际}覆盖——在全体样本上平均满足名�
 \subsection{金融时序中的覆盖偏差与自适应 Conformal}
 CP 的覆盖保证以可交换性为前提，而金融时序数据天然违背这一假设：收益序列存在时间依赖与波动率聚集，截面之间存在强相关，且市场风格随宏观环境发生分布漂移（distribution shift）。这些因素会使 CP 的实测覆盖系统性偏离名义水平，A 股的低信噪比与强非平稳性更会放大该偏差。Kato\cite{Kato2024CPPS} 将 CP 直接嵌入组合选择，提出 Conformal Predictive Portfolio Selection 范式，与本文将置信度耦合进组合优化的思路高度相关，但其同样面临可交换性破坏的挑战。
 
-为应对分布漂移，一类自适应/在线 CP 方法应运而生。Gibbs 与 Cand\`es\cite{Gibbs2021ACI} 的 Adaptive Conformal Inference（ACI）通过在线更新名义显著性水平 $\alpha_{t+1}=\alpha_t+\eta\,(\mathbb{1}[y_t\notin C_t]-\alpha)$，使长期平均覆盖收敛到目标，且不依赖分布平稳性。在此基础上，Xu 与 Xie\cite{Xu2023SPCI} 的 SPCI 引入残差自相关建模以改善时序覆盖；Hallberg\cite{Hallberg2024MultiStepACI} 将 ACI 扩展到多步预测；Aydin 等\cite{Aydin2025TCP} 的 Temporal Conformal Prediction 在分位回归之上叠加衰减学习率，专为金融时序非平稳性设计；Yang 等\cite{Yang2025ECI} 的 Error-quantified Conformal Inference 以平滑反馈替代二值 miscoverage 以加速适配；Sun 等\cite{Sun2025CPTC} 的变点感知 CP 引入显式的状态切换预测；Neglia 等\cite{Neglia2026ResCP} 的 ResCP 借助蓄水池计算实现免训练的在线 CP。这些方法在覆盖自适应性上明显优于静态 Split CP，构成本文不确定性感知设计的直接对照与未来改进方向；本文将在第四章以简化的 ACI 模拟，定量验证该路径在 A 股环境下矫正覆盖偏差的潜力（第~\ref{sec:future_work} 节）。
+为应对分布漂移，一类自适应/在线 CP 方法应运而生。Gibbs 与 Cand\`es\cite{Gibbs2021ACI} 的 Adaptive Conformal Inference（ACI）通过在线更新名义显著性水平 $\alpha_{t+1}=\alpha_t+\eta\,(\mathbb{1}[y_t\notin C_t]-\alpha)$，使长期平均覆盖收敛到目标，且不依赖分布平稳性。在此基础上，Xu 与 Xie\cite{Xu2023SPCI} 的 SPCI 引入残差自相关建模以改善时序覆盖；Hallberg\cite{Hallberg2024MultiStepACI} 将 ACI 扩展到多步预测；Aydin 等\cite{Aydin2025TCP} 的 Temporal Conformal Prediction 在分位回归之上叠加衰减学习率，专为金融时序非平稳性设计；Yang 等\cite{Yang2025ECI} 的 Error-quantified Conformal Inference 以平滑反馈替代二值 miscoverage 以加速适配；Sun 等\cite{Sun2025CPTC} 的变点感知 CP 引入显式的状态切换预测；Neglia 等\cite{Neglia2026ResCP} 的 ResCP 借助蓄水池计算实现免训练的在线 CP。这些方法在覆盖自适应性上明显优于静态 Split CP，构成本文不确定性感知设计的直接对照，也是其在 A 股短样本上暂未奏效后值得优先尝试的改进方向（详见\ref{sec:future_work}）。
 
 \section{本章小结}
 本章系统梳理了本文核心算法所依托的两类理论与相关工作。其一是指数增强与组合优化的理论基础：主动管理基本定律及其传输系数推广 $IR=TC\cdot IC\cdot\sqrt{N}$ 确立了组合优化（最大化 $TC$）在策略中的核心地位；多因子与机器学习方法为上游 alpha 信号的生成提供了手段；组合优化方法谱系与约束体系刻画了可实施性与传输效率之间的权衡；协方差估计的收缩与修正则为应对 ``误差最大化'' 提供了工具，共同对应绪论的挑战一。其二是不确定性量化：Conformal Prediction 在弱假设下为点预测附加了具有有限样本覆盖保证的置信度，其条件覆盖变体与自适应改进为低信噪比、非平稳的金融场景提供了方法储备，对应绪论的挑战二。这些工作共同构成第三章算法设计的出发点。
@@ -210,12 +139,12 @@ CP 的覆盖保证以可交换性为前提，而金融时序数据天然违背�
 
 第二章已确立组合优化在指数增强中的核心地位，并指出其在 A 股落地需直面协方差病态与预测不确定性两重挑战。带约束二次规划虽是组合优化的成熟范式，但要在 A 股低信噪比、强非平稳的环境下稳健运行，仍须在两个层面做针对性设计。其一是\emph{求解稳健层面}：当资产数与估计窗口长度相当时，样本协方差矩阵病态，优化器极易把估计噪声当作真实信号而放大，须在估计与求解两端抑制病态、保证数值稳定，否则长周期回测中数千次连续求解将频繁退化为极端解或求解失败。其二是\emph{输入可信层面}：传统优化器只接收 alpha 点预测、默认个股同等可信，会把权重无差别地押注在高方差预测上，须为 alpha 预测附加有理论保证的可信度度量并将其纳入优化目标与可行域。本章即围绕这两个层面，自系统框架出发，逐层给出核心算法的设计与实现。
 
-本章组织如下：第~\ref{sec:framework} 节给出系统整体框架，明确核心算法在系统中的位置及其与上下游的解耦关系；第~\ref{sec:cpo} 节针对求解稳健层面（挑战一），详述约束型多因子组合优化算法的形式化、协方差处理、求解机制与复杂度，并以伪代码严格表达；第~\ref{sec:uaco} 节针对输入可信层面（挑战二），给出基于 Conformal Prediction 的不确定性感知扩展。
+本章组织如下：\ref{sec:framework}给出系统整体框架，明确核心算法在系统中的位置及其与上下游的解耦关系；\ref{sec:cpo}针对求解稳健层面（挑战一），详述约束型多因子组合优化算法的形式化、协方差处理、求解机制与复杂度，并以伪代码严格表达；\ref{sec:uaco}针对输入可信层面（挑战二），给出基于 Conformal Prediction 的不确定性感知扩展，包括置信度构造、不确定性风险项与信度门控稳健混合。
 
 \section{系统整体框架}
 \label{sec:framework}
 
-本文的指数增强系统由六个层次串联而成，整体架构如图~\ref{fig:arch} 所示。数据层经由 \texttt{akshare} 与 \texttt{baostock} 接入沪深 300 成分股的行情、季度财务与宏观数据；因子工程层将其加工为 15 个数值因子并完成异常值控制与截面标准化；alpha 预测层由 LightGBM 多因子模型输出截面 alpha 分数 $\hat\alpha$；不确定性量化层以 Conformal Prediction 为每只股票的预测附加置信度 $c_i$；组合优化层求解带约束的二次规划，输出主动权重 $w$；回测评估层以月度调仓并计入双边交易成本，输出 $IR$、Sharpe、最大回撤等绩效指标。
+为将含噪的截面 alpha 预测稳健地转化为可实施的主动权重，本文设计了一套端到端的指数增强系统，其整体架构如图~\ref{fig:arch} 所示，数据自上而下在六个层次间依次流转。\textbf{数据层}经 \texttt{akshare} 与 \texttt{baostock} 接入沪深 300 成分股的行情、季度财务与宏观数据；\textbf{因子工程层}将其加工为 15 个数值因子并完成异常值控制与截面标准化；\textbf{alpha 预测层}由 LightGBM 多因子模型输出截面 alpha 分数 $\hat\alpha$；\textbf{不确定性量化层}以 Conformal Prediction 为每只股票的预测附加置信度 $c_i$；\textbf{组合优化层}求解带约束的二次规划，输出主动权重 $w$；\textbf{回测评估层}以月度调仓并计入双边交易成本，输出 $IR$、夏普比率与最大回撤等绩效指标。
 
 \begin{figure}[htbp]
 \centering
@@ -253,7 +182,7 @@ CP 的覆盖保证以可交换性为前提，而金融时序数据天然违背�
 
 \node[cbox, below=of cp] (opt)
   {组合优化层：约束二次规划（Ledoit-Wolf 协方差
-   $+$ 多面体约束 $+$ 置信加权）$\Rightarrow$ 权重 $w$};
+   $+$ 多面体约束 $+$ 不确定性门控）$\Rightarrow$ 权重 $w$};
 
 \node[bbox, below=of opt] (bt)
   {回测评估层：月度调仓 $+$ 双边交易成本
@@ -295,19 +224,23 @@ CP 的覆盖保证以可交换性为前提，而金融时序数据天然违背�
 \node[font=\scriptsize\itshape, text=corange2!85, anchor=north east]
   at (corebox.north east) {本文核心算法};
 
-\end{tikzpicture}
-\caption{指数增强系统整体架构（虚线框为本文核心算法，灰色虚线为闭环反馈路径）}
+\end{tikzpicture}%
+}
+\caption{指数增强系统整体架构（虚线框为本文核心算法，灰色虚线为月度滚动重训与下一调仓周期的闭环反馈路径）}
 \label{fig:arch}
 \end{figure}
 
-在该框架中，本文的核心算法位于图~\ref{fig:arch} 的虚线框内，即不确定性量化层与组合优化层。alpha 预测层提供输入信号，回测评估层提供输出度量，二者为核心算法的设计与评估提供了完整的上下文。值得强调的是，该系统并非单向流水线，而是一个随市场状态持续自适应的\emph{闭环}：回测评估层产出的已实现收益并非流程终点，在月度滚动机制下，每个调仓周期新实现的超额收益会作为新标签反馈到 alpha 预测层与不确定性量化层（对应图~\ref{fig:arch} 中的虚线反馈箭头），驱动 LightGBM 在最新窗口上重训、Conformal 在最新校准残差上重新估计置信度，从而使预测与不确定性度量始终贴合近期的市场风格；这一反馈迭代机制也与第四章严格样本外实验揭示的 A 股强非平稳性相呼应。在此闭环之内，alpha 预测层与组合优化层又保持\emph{解耦}：优化算法只接收标准化的 alpha 分数与（可选的）置信度，而不依赖具体的预测模型，这使得算法可独立替换上游模型、便于消融与复用。
+本文的核心算法位于图~\ref{fig:arch} 的虚线框内，即不确定性量化层与组合优化层；alpha 预测层为其提供输入信号，回测评估层为其提供输出度量。值得强调的是，该系统并非单向流水线，而是一个随市场状态持续自适应的\emph{闭环}：回测评估层产出的已实现收益并非流程终点，在月度滚动机制下，每个调仓周期新实现的超额收益会作为新标签反馈到 alpha 预测层与不确定性量化层（对应图~\ref{fig:arch} 中的虚线反馈箭头），驱动 LightGBM 在最新窗口上重训、Conformal 在最新校准残差上重新估计置信度，从而使预测与不确定性度量始终贴合近期的市场风格。这一反馈迭代机制契合 A 股市场的强非平稳性——以近期窗口滚动重训，使模型持续贴合最新的市场风格。在此闭环之内，一个贯穿全系统的设计原则是 alpha 预测层与组合优化层的\emph{解耦}：优化算法只接收标准化的 alpha 分数与（可选的）置信度，而不依赖具体的预测模型。这一解耦不仅便于在第四章对各设计要素做独立消融，也意味着上游信号源可被替换为任意截面回归模型而不影响本文算法的适用性。
 
-为完整起见，本节先简述上游因子工程与 alpha 预测的设定。本文使用 15 个数值因子，按语义分为四组：价值（\texttt{ep\_ttm}、\texttt{bp}）、质量（\texttt{roe}、\texttt{grossprofitmargin}、\texttt{netprofitmargin}、\texttt{yoynetprofit}、\texttt{assetturnover}、\texttt{cfotoor}）、技术与微观结构（\texttt{ret\_20}、\texttt{ret\_60}、\texttt{volatility\_20}、\texttt{turnover\_20}）、外部宏观（\texttt{northbound\_net\_inflow}、\texttt{m2\_yoy}、\texttt{cn\_spread\_10y\_2y}）。每个因子在每个交易日截面上依次经过 MAD 缩尾（$k=3$）、Z-Score 标准化与行业中性化处理。预测标签采用相对沪深 300 的 20 日超额收益，以剥离系统性 Beta、聚焦截面 alpha。alpha 预测层采用固定超参数的 LightGBM（\texttt{n\_estimators=300}、\texttt{learning\_rate=0.05}、\texttt{num\_leaves=31}），以月度滚动方式重训。
+为完整起见，本节先交代上游因子工程与 alpha 预测的设定。本文使用 15 个数值因子，按语义分为四组：价值（\texttt{ep\_ttm}、\texttt{bp}）、质量（\texttt{roe}、\texttt{grossprofitmargin}、\texttt{netprofitmargin}、\texttt{yoynetprofit}、\texttt{assetturnover}、\texttt{cfotoor}）、技术与微观结构（\texttt{ret\_20}、\texttt{ret\_60}、\texttt{volatility\_20}、\texttt{turnover\_20}）、外部宏观（\texttt{northbound\_net\_inflow}、\texttt{m2\_yoy}、\texttt{cn\_spread\_10y\_2y}）。每个因子在每个交易日的截面上依次经 MAD 缩尾（$k=3$）、Z-Score 标准化与行业中性化处理；预测标签取相对沪深 300 的 20 日超额收益，以剥离系统性 Beta、聚焦截面 alpha；alpha 预测层采用固定超参数的 LightGBM（\texttt{n\_estimators=300}、\texttt{learning\_rate=0.05}、\texttt{num\_leaves=31}），以月度滚动方式重训。
 
 \section{约束型多因子组合优化算法}
 \label{sec:cpo}
 
+本节针对挑战一，给出约束型多因子组合优化算法。其设计分三步递进：先将组合构建形式化为带约束的二次规划（第~\ref{subsec:formulation} 节），再处理决定解稳定性的协方差估计与数值稳健性（第~\ref{subsec:cov} 节），最后以伪代码描述完整流程并分析复杂度（第~\ref{subsec:complexity} 节）。
+
 \subsection{优化问题的形式化}
+\label{subsec:formulation}
 设某调仓日截面含 $n$ 只股票，记 $\hat\alpha\in\mathbb{R}^n$ 为标准化 alpha 分数，$w\in\mathbb{R}^n$ 为待求组合权重，$w_b$ 为基准权重，$w_{\text{prev}}$ 为上期权重，$\Sigma\in\mathbb{R}^{n\times n}$ 为个股日收益协方差矩阵，主动权重为 $w-w_b$。本文将组合优化形式化为如下二次规划：
 \begin{align}
 \max_{w}\quad & \hat\alpha^\top w \;-\; \lambda\,(w-w_b)^\top \Sigma\,(w-w_b)\;-\;\kappa\,\lVert w-w_{\text{prev}}\rVert_1 \label{eq:obj}\\
@@ -316,15 +249,17 @@ CP 的覆盖保证以可交换性为前提，而金融时序数据天然违背�
 & \big|\,\mathbf{1}_{S_k}^\top (w-w_b)\,\big| \;\le\; d_{\text{ind}},\quad \forall\,k, \label{eq:ind}\\
 & \lVert w-w_{\text{prev}}\rVert_1 \;\le\; 2\,\tau_{\max}. \label{eq:turn}
 \end{align}
-目标式~\eqref{eq:obj} 由三项构成：alpha 收益项 $\hat\alpha^\top w$、以风险厌恶系数 $\lambda$ 加权的主动风险惩罚项、以及以 $\kappa$ 加权的 $\ell_1$ 换手惩罚项。约束式~\eqref{eq:box} 为全额投资与禁止卖空、单股权重上限 $w_{\max}$；式~\eqref{eq:te} 将\emph{事前年化跟踪误差}约束在 $\sigma_{TE}$ 以内（其中 $\Sigma$ 为日频协方差，$\sqrt{252}$ 为年化因子）；式~\eqref{eq:ind} 限制每个申万一级行业 $S_k$ 的主动暴露不超过 $d_{\text{ind}}$；式~\eqref{eq:turn} 将月度单边换手约束在 $\tau_{\max}$ 以内。该问题是一个带二次约束的凸二次规划，全局最优解存在且唯一（当 $\Sigma$ 半正定时）。约束式~\eqref{eq:te}--\eqref{eq:turn} 正是压低传输系数 $TC$、却保证策略可实施性的现实摩擦，优化算法的任务即在该可行域内最大化 alpha 兑现。
+目标式~\eqref{eq:obj} 由三项构成：alpha 收益项 $\hat\alpha^\top w$、以风险厌恶系数 $\lambda$ 加权的主动风险惩罚项、以及以 $\kappa$ 加权的 $\ell_1$ 换手惩罚项。约束方面，全额投资、禁止卖空与单股上限 $w_{\max}$ 共同界定箱式可行域（式~\eqref{eq:box}）；式~\eqref{eq:te} 将\emph{事前年化跟踪误差}约束在 $\sigma_{TE}$ 以内（其中 $\Sigma$ 为日频协方差，$\sqrt{252}$ 为年化因子）；式~\eqref{eq:ind} 限制每个申万一级行业 $S_k$ 的主动暴露不超过 $d_{\text{ind}}$；式~\eqref{eq:turn} 将月度单边换手约束在 $\tau_{\max}$ 以内。该问题是带二次约束的凸二次规划，当 $\Sigma$ 半正定时全局最优解存在且唯一。这些约束正是第二章所述压低传输系数 $TC$、却保证策略可实施性的现实摩擦，优化算法的任务即是在该多面体与椭球相交的可行域内最大化 alpha 的兑现效率。
 
 \subsection{协方差估计与数值稳健性}
-协方差矩阵 $\Sigma$ 的质量直接决定式~\eqref{eq:obj} 与式~\eqref{eq:te} 的可靠性。本文采用 Ledoit-Wolf 缩减估计\cite{Ledoit2004}：取调仓日前 $60$ 个交易日的个股日收益，缺失以 $0$ 填充后，按最优收缩强度将样本协方差向缩减目标加权，得到良态估计 $\hat\Sigma_{\text{LW}}$。为进一步保证求解器所需的半正定性，本文对 $\hat\Sigma_{\text{LW}}$ 做对称化并计算最小特征值 $\mu_{\min}$：若 $\mu_{\min}<0$，则加上 $(-\mu_{\min}+\epsilon)I$ 修正；否则加上 $\epsilon I$ 的 ridge 项（$\epsilon=10^{-4}$）。该 ``缩减 $+$ 特征值修正'' 的两级处理共同抑制了挑战一中的 ``误差最大化''。
+\label{subsec:cov}
+协方差矩阵 $\Sigma$ 的质量直接决定目标风险项与跟踪误差约束的可靠性，是抑制挑战一中 ``误差最大化'' 的关键。本文采用两级处理。\textbf{估计层}取调仓日前 $60$ 个交易日的个股日收益，缺失以 $0$ 填充后，按 Ledoit-Wolf 最优收缩强度\cite{Ledoit2004} 将样本协方差向结构化目标加权，得良态估计 $\hat\Sigma_{\text{LW}}$，其压缩了特征值谱的离散度、改善了条件数。\textbf{求解层}为进一步保证求解器所需的半正定性，对 $\hat\Sigma_{\text{LW}}$ 做对称化并计算最小特征值 $\mu_{\min}$：若 $\mu_{\min}<0$ 则加 $(-\mu_{\min}+\epsilon)I$ 将谱整体抬升至非负，否则仅加 $\epsilon I$ 的 ridge 项（$\epsilon=10^{-4}$）。该 ``缩减 $+$ 特征值修正'' 的两级处理共同保证了输入优化器的协方差矩阵良态且半正定。
 
-在求解层面，本文设计了 OSQP$\to$CLARABEL$\to$SCS 的三级求解器回退机制：优先以高精度参数调用一阶算子分裂法 OSQP，若其未能返回最优解，则依次降级到内点法 CLARABEL 与一阶锥求解器 SCS；若三者均失败，则回退到上期权重 $w_{\text{prev}}$（或基准权重）以保证回测链路不中断。求解结果再经裁剪与归一化以严格满足式~\eqref{eq:box}。该机制以可控的额外开销换取了长周期回测中数千次连续求解的鲁棒性。
+在求解层面，本文进一步设计 OSQP$\to$CLARABEL$\to$SCS 的三级求解器回退机制：优先以高精度参数调用一阶算子分裂法 OSQP，若其未返回最优解，则依次降级到内点法 CLARABEL 与一阶锥求解器 SCS；若三者均失败，则回退到上期权重 $w_{\text{prev}}$（或基准权重）以保证回测链路不中断。求解结果再经裁剪与归一化严格满足式~\eqref{eq:box}。该机制以可控的额外开销，换取了长周期回测中数千次连续求解的鲁棒性。
 
 \subsection{算法描述与复杂度}
-约束型多因子组合优化的完整流程如算法~\ref{alg:cpo} 所示。
+\label{subsec:complexity}
+综合上述形式化与数值处理，约束型多因子组合优化的单期流程如算法~\ref{alg:cpo} 所示。
 
 \begin{algorithm}[htbp]
 \caption{约束型多因子组合优化（单期调仓）}
@@ -348,17 +283,20 @@ CP 的覆盖保证以可交换性为前提，而金融时序数据天然违背�
 \end{algorithmic}
 \end{algorithm}
 
-\textbf{复杂度分析。}设单期截面股票数为 $n$、协方差估计窗口为 $T$（本文 $T=60$）。协方差缩减估计的代价为 $O(n^2 T)$，最小特征值计算为 $O(n^3)$。二次规划含 $n$ 个变量、$O(n+m)$ 个约束（$m$ 为行业数），一阶或内点求解器单次迭代的主导代价为 $O(n^3)$。因此单期调仓的时间复杂度为 $O(n^3 + n^2 T)$，空间复杂度为 $O(n^2)$。对一个含 $n_d$ 个交易日、月度调仓共 $R$ 次的回测，总复杂度为 $O\big(R\,(n^3+n^2 T)\big)$。在 $n\approx 300$、$R\approx 120$ 的长周期设定下，该复杂度可在单机 CPU 上分钟级完成，无需 GPU 依赖。
+\textbf{复杂度分析。}设单期截面股票数为 $n$、协方差估计窗口为 $T$（本文 $T=60$）。协方差缩减估计的代价为 $O(n^2 T)$，最小特征值计算为 $O(n^3)$；二次规划含 $n$ 个变量与 $O(n+m)$ 个约束（$m$ 为行业数），一阶或内点求解器单次迭代的主导代价为 $O(n^3)$。因此单期调仓的时间复杂度为 $O(n^3 + n^2 T)$，空间复杂度为 $O(n^2)$；对含 $R$ 次月度调仓的回测，总复杂度为 $O\big(R\,(n^3+n^2 T)\big)$。在 $n\approx 300$、$R\approx 120$ 的长周期设定下，该复杂度可在单机 CPU 上分钟级完成，无需 GPU 依赖——这也是本文强调算法工程可复现性的基础。
 
 \section{不确定性感知的组合优化扩展}
 \label{sec:uaco}
 
+本节针对挑战二，将预测可信度纳入组合优化。其逻辑分三步：先以 Conformal Prediction 为每只股票构造具有覆盖保证的置信度（第~\ref{subsec:cp_conf} 节）；再针对 A 股低信噪比、Conformal 覆盖不足的特点，设计两种将不确定性稳健地纳入优化的方案——把预测方差并入风险项的不确定性风险项（第~\ref{subsec:unc_risk} 节），以及以覆盖率门控模型信任度、在 ML 信号与稳健分散之间自适应折中的信度门控稳健混合（第~\ref{subsec:gated} 节）。
+
 \subsection{基于 Conformal Prediction 的置信度构造}
-为应对挑战二，本文在 alpha 预测之上引入 Split Conformal Prediction，为每只股票构造置信度。对每个滚动训练窗口，将训练子集按 $1-\rho:\rho$（$\rho=0.3$）随机划分为建模子集 $D_{\text{tr}}$ 与校准子集 $D_{\text{cal}}$；底层模型在 $D_{\text{tr}}$ 上拟合后，在 $D_{\text{cal}}$ 上计算保形得分 $s_i=|y_i-\hat y_i|$，并取其 Vovk 修正分位数
-\[
-q_\alpha = \text{Quantile}_{\,\lceil (n_{\text{cal}}+1)(1-\alpha_{\text{CP}})\rceil/n_{\text{cal}}}\big(\{s_i\}\big),
-\]
-其中 $\alpha_{\text{CP}}=0.1$ 对应名义 $90\%$ 覆盖。测试样本的预测区间为 $[\hat y - q_\alpha,\ \hat y + q_\alpha]$，半宽越小表示预测越可信。据此定义原始置信度 $\tilde c_i = 1/(2q_{\alpha,i}+\epsilon)$，再经 min-max 归一化得 $c_i\in[0,1]$。Mondrian 变体按申万一级行业分组独立计算 $q_\alpha$（组样本不足时回退全局分位数），以实现条件覆盖。该过程如算法~\ref{alg:cp} 所示。
+\label{subsec:cp_conf}
+为在弱假设下量化 alpha 预测的可信度，本文在预测层之上引入 Split Conformal Prediction。对每个滚动训练窗口，将训练子集按 $1-\rho:\rho$（$\rho=0.3$）随机划分为建模子集 $D_{\text{tr}}$ 与校准子集 $D_{\text{cal}}$；底层模型在 $D_{\text{tr}}$ 上拟合后，在 $D_{\text{cal}}$ 上计算保形得分 $s_i=|y_i-\hat y_i|$，并取其 Vovk 修正分位数
+\begin{equation}
+q_\alpha = \text{Quantile}_{\,\lceil (n_{\text{cal}}+1)(1-\alpha_{\text{CP}})\rceil/n_{\text{cal}}}\big(\{s_i\}\big),\quad \alpha_{\text{CP}}=0.1,
+\end{equation}
+对应名义 $90\%$ 覆盖。测试样本的预测区间为 $[\hat y - q_\alpha,\ \hat y + q_\alpha]$，半宽越小表示预测越可信。据此定义原始置信度 $\tilde c_i = 1/(2q_{\alpha,i}+\epsilon)$，再经 min-max 归一化得 $c_i\in[0,1]$。Mondrian 变体按申万一级行业分组独立计算 $q_\alpha$（组样本不足时回退全局分位数），以引入行业条件性。该过程如算法~\ref{alg:cp} 所示。
 
 \begin{algorithm}[htbp]
 \caption{Split Conformal 校准与置信度构造}
@@ -376,88 +314,74 @@ q_\alpha = \text{Quantile}_{\,\lceil (n_{\text{cal}}+1)(1-\alpha_{\text{CP}})\rc
 \end{algorithmic}
 \end{algorithm}
 
-\subsection{三种置信加权方案}
-本文设计三种方案，将置信度 $c_i$ 耦合进算法~\ref{alg:cpo} 的优化问题，以体现 ``可信度高的预测获得更大权重自由度'' 这一直觉：
+\subsection{不确定性进风险项}
+\label{subsec:unc_risk}
+在 A 股低信噪比环境下，直接按置信度对个股加权并不可靠（第~\ref{subsec:uncertainty} 节将定量揭示：名义 $90\%$ 的 Conformal 区间实测覆盖仅约 $63\%$，且置信度与未来收益呈 ``高置信反低收益'' 的倒挂关系）。因此本文不采用逐股的置信缩放，而从 ``不确定性即风险'' 这一更稳健的视角出发：以贝叶斯/Black--Litterman 的眼光看，alpha 点估计自带估计方差，区间半宽 $q_i$ 越大越不可信。将其平方作为预测方差并入协方差对角——先把 $\{q_i^2\}$ 归一化到与 $\Sigma$ 对角同量级（避免量纲失配压垮 TE 约束），再按系数 $\tau$ 加到对角，得 $\Sigma' = \Sigma + \tau\,\mathrm{diag}(\tilde q_i^2)$。以 $\Sigma'$ 替换算法~\ref{alg:cpo} 风险项与跟踪误差约束中的 $\Sigma$，优化器与 TE 约束便会自动抬高高不确定个股的 ``有效风险''、压低其主动暴露，且无需任何关于置信度方向的先验假设。当截面缺少不确定性列时，该方案自动退化为算法~\ref{alg:cpo}，保证向后兼容。
+
+\subsection{信度门控的稳健混合}
+\label{subsec:gated}
+不确定性风险项在个股层抑制了高方差预测，但当 ML 信号整体不可信时仍可能传导噪声。为此本文进一步提出信度门控的稳健混合：不再用置信度对个股做截面 tilt，而是用 Conformal 的覆盖率本身作 ``模型可信度温控''，在每个调仓日决定 ``信任 ML 信号'' 与 ``退向稳健分散'' 的比例。
 \begin{itemize}
-    \item \textbf{alpha 缩放}（\texttt{alpha\_scale}）：在目标项中以 $\hat\alpha_i' = \hat\alpha_i\cdot c_i^{\beta}$ 替换原 alpha（$\beta=1$ 默认），直接放大高置信样本的收益贡献；
-    \item \textbf{候选过滤}（\texttt{candidate\_filter}）：仅保留置信度排名前 $p_{\text{top}}$（$=70\%$）的股票进入 QP 候选池（至少保留 $30$ 只），其余权重置零，从可行域层面剔除低可信样本；
-    \item \textbf{目标惩罚}（\texttt{objective\_penalty}）：在目标式~\eqref{eq:obj} 中追加惩罚项 $-\gamma\sum_i (1-c_i)\,w_i^2$（$\gamma=0.1$ 默认），对低置信样本的权重施加二次抑制。
+    \item \textbf{稳健腿}：以简单的多因子合成 z-score（非 ML）信号 $\hat\alpha^{\text{rob}}$ 跑同一约束优化器，得稳健权重 $w^{\text{rob}}$。它不依赖单次模型拟合，是低信噪比下天然分散、可信的 ``先验组合''。
+    \item \textbf{可信度温控}：每个调仓日 $t$，仅用 $t$ 之前已完全实现（预测日 $\le t-\text{embargo}$）的标签计算 Conformal 区间的滚动实测覆盖率 $cov_t$，再映射为信任度 $g_t=\mathrm{clip}\big((cov_t-cov_{\text{floor}})/((1-\alpha_{\text{CP}})-cov_{\text{floor}}),\,0,\,1\big)$。覆盖率越接近名义水平越信任 ML，越低则越退向稳健腿。该量只用已实现标签，严格无前瞻。
+    \item \textbf{门控混合}：最终权重 $w=g_t\,w^{\text{ML}}+(1-g_t)\,w^{\text{rob}}$，其中 $w^{\text{ML}}$ 为算法~\ref{alg:cpo} 在 ML alpha 上的解。覆盖良好（$g_t\to1$）时跟随 ML，Conformal 自报不可信（$g_t\to0$）时退向稳健分散——从而把 ``何时该信任不确定性度量'' 这一决策，交还给 Conformal 的覆盖保证本身。
 \end{itemize}
-三种方案分别从\emph{目标系数、可行域、目标曲率}三个不同层面注入不确定性信息，构成一个由温和到激进的谱系：目标惩罚最温和（仅二次抑制），候选过滤居中（硬性剔除），alpha 缩放最激进（直接重标定收益）。整体流程如图~\ref{fig:ua_flow} 所示。当截面缺少置信度列时，扩展算法自动退化为算法~\ref{alg:cpo}，保证向后兼容。
+其完整流程如算法~\ref{alg:gated} 与图~\ref{fig:gated_flow} 所示。该方案与算法~\ref{alg:cpo} 正交：稳健腿与 ML 腿各自调用算法~\ref{alg:cpo}，仅在持仓层按 $g_t$ 线性混合。
+
+\begin{algorithm}[htbp]
+\caption{信度门控的稳健混合（单期调仓）}
+\label{alg:gated}
+\begin{algorithmic}[1]
+\Require 截面快照（含 $\hat\alpha_{\text{ML}}$、$\hat\alpha_{\text{rob}}$、行业、$w_b$）、历史日收益 $R$、$w_{\text{prev}}$、已实现的 Conformal 区间与标签、参数 $(cov_{\text{floor}},\alpha_{\text{CP}},\text{embargo})$
+\Ensure 主动权重 $w$
+\State 用预测日 $\le t-\text{embargo}$ 的已实现标签计算滚动覆盖率 $cov_t$ \Comment{leak-free}
+\State $g_t \gets \mathrm{clip}\big((cov_t-cov_{\text{floor}})/((1-\alpha_{\text{CP}})-cov_{\text{floor}}),0,1\big)$ \Comment{暖机期取默认值}
+\State $w_{\text{ML}} \gets$ 算法~\ref{alg:cpo}$(\hat\alpha_{\text{ML}})$ \Comment{ML 腿}
+\State $w_{\text{rob}} \gets$ 算法~\ref{alg:cpo}$(\hat\alpha_{\text{rob}})$ \Comment{稳健因子腿}
+\State $w \gets g_t\,w_{\text{ML}} + (1-g_t)\,w_{\text{rob}}$；归一化
+\State \textbf{return} $w$
+\end{algorithmic}
+\end{algorithm}
 
 \begin{figure}[htbp]
 \centering
 \resizebox{\textwidth}{!}{%
 \begin{tikzpicture}[
-  b/.style={draw, rounded corners, align=center, font=\small, minimum height=0.8cm, inner sep=3pt},
+  b/.style={draw, rounded corners, align=center, font=\small, minimum height=0.9cm, inner sep=4pt},
   arr/.style={-{Latex[length=2mm]}, thick},
-  node distance=0.55cm and 0.9cm,
+  node distance=0.7cm and 1.0cm,
 ]
-\node[b, text width=2.4cm] (cal) {Conformal 校准\\$q_\alpha$（算法~\ref{alg:cp}）};
-\node[b, right=of cal, text width=2.2cm] (conf) {置信度 $c_i$\\$=1/(2q_\alpha{+}\epsilon)$};
-\node[b, right=of conf, text width=2.0cm] (as) {\texttt{alpha\_scale}\\$\hat\alpha_i c_i^{\beta}$};
-\node[b, below=of as, text width=2.0cm] (cf) {\texttt{candidate\_filter}\\保留 top $p_{\text{top}}$};
-\node[b, above=of as, text width=2.0cm] (op) {\texttt{objective\_penalty}\\$-\gamma(1{-}c_i)w_i^2$};
-\node[b, right=2.0cm of as, text width=2.0cm] (qp) {约束 QP\\（算法~\ref{alg:cpo}）};
-\node[b, right=of qp, text width=1.4cm] (w) {权重 $w$};
-\draw[arr] (cal)--(conf);
-\draw[arr] (conf)--(as);
-\draw[arr] (conf.east) to[out=-20,in=180] (cf.west);
-\draw[arr] (conf.east) to[out=20,in=180] (op.west);
-\draw[arr] (as)--(qp);
-\draw[arr] (op.east) to[out=0,in=160] (qp.north west);
-\draw[arr] (cf.east) to[out=0,in=200] (qp.south west);
-\draw[arr] (qp)--(w);
+\node[b, text width=3.6cm] (cov) {已实现标签 $\Rightarrow$ 滚动覆盖率 $cov_t$（算法~\ref{alg:cp}）};
+\node[b, below=of cov, text width=3.0cm] (ml) {$\hat\alpha_{\text{ML}}\Rightarrow$ 算法~\ref{alg:cpo} $\Rightarrow w_{\text{ML}}$};
+\node[b, below=of ml, text width=3.0cm] (rob) {$\hat\alpha_{\text{rob}}\Rightarrow$ 算法~\ref{alg:cpo} $\Rightarrow w_{\text{rob}}$};
+\node[b, right=2.2cm of cov, text width=2.6cm] (g) {信任度\\$g_t=\mathrm{clip}(\cdots)$};
+\node[b, right=1.6cm of ml, text width=3.4cm] (mix) {门控混合\\$w=g_t w_{\text{ML}}+(1{-}g_t)w_{\text{rob}}$};
+\node[b, right=1.6cm of mix, text width=1.6cm] (w) {权重 $w$};
+\draw[arr] (cov) -- (g);
+\draw[arr] (g.south) to[out=-90,in=120] (mix.north west);
+\draw[arr] (ml) -- (mix);
+\draw[arr] (rob.east) to[out=0,in=-120] (mix.south west);
+\draw[arr] (mix) -- (w);
 \end{tikzpicture}%
 }
-\caption{不确定性感知组合优化流程：置信度经三种方案之一耦合进约束 QP}
-\label{fig:ua_flow}
+\caption{信度门控稳健混合：Conformal 覆盖率门控 ML 腿与稳健因子腿的混合比例}
+\label{fig:gated_flow}
 \end{figure}
 
-\subsection{不确定性感知优化算法}
-不确定性感知组合优化的完整流程如算法~\ref{alg:uaco} 所示。它在算法~\ref{alg:cpo} 的基础上，依据所选方案在 ``信号注入''（alpha 缩放）、``候选筛选''（候选过滤）或 ``目标改写''（目标惩罚）三处之一插入置信度，其余协方差估计、约束组装与求解器回退逻辑完全复用，体现了与基础算法的正交解耦。
-
-\begin{algorithm}[htbp]
-\caption{不确定性感知组合优化（单期调仓）}
-\label{alg:uaco}
-\begin{algorithmic}[1]
-\Require 截面快照（含 $\hat\alpha$、$w_b$、置信度 $c$）、历史日收益 $R$、$w_{\text{prev}}$、方案 $\in\{\texttt{alpha\_scale},\texttt{candidate\_filter},\texttt{objective\_penalty}\}$ 及其参数 $(\beta,p_{\text{top}},\gamma)$
-\Ensure 主动权重 $w$
-\If{截面无置信度列}
-  \State \textbf{return} 算法~\ref{alg:cpo} 的结果 \Comment{向后兼容}
-\EndIf
-\State 将 $c$ 截断到 $[0,1]$，缺失以中位数填充
-\If{方案 $=\texttt{candidate\_filter}$}
-  \State 按 $c$ 降序保留前 $\lceil p_{\text{top}}\, n\rceil$ 只（至少 $30$ 只）
-\EndIf
-\State 执行算法~\ref{alg:cpo} 的步骤 1--5（清洗、标准化、协方差、行业矩阵）
-\If{方案 $=\texttt{alpha\_scale}$}
-  \State $\hat\alpha \gets \hat\alpha \odot c^{\beta}$ \Comment{逐元素缩放}
-\EndIf
-\If{方案 $=\texttt{objective\_penalty}$}
-  \State 在目标中追加 $-\gamma\sum_i (1-c_i)\,w_i^2$
-\EndIf
-\State 经三级求解器回退求解 QP；裁剪并归一化
-\State \textbf{return} $w$
-\end{algorithmic}
-\end{algorithm}
-
-至此，本文完成了对指数增强核心组合优化算法的设计与实现：算法~\ref{alg:cpo} 以协方差缩减、特征值修正与求解器回退应对挑战一，算法~\ref{alg:cp}--\ref{alg:uaco} 以 Conformal 置信度的三种耦合方式应对挑战二。下一章将在真实 A 股数据上对二者进行系统的实验评估。
+至此完成核心组合优化算法的设计与实现：算法~\ref{alg:cpo} 以协方差缩减、特征值修正与求解器回退应对挑战一；算法~\ref{alg:cp} 构造具覆盖保证的 Conformal 置信度，算法~\ref{alg:gated} 以 ``覆盖率门控的稳健混合''（辅以不确定性进风险项）将预测不确定性稳健地纳入优化，应对挑战二。下一章将在真实 A 股数据上对二者进行系统的实验评估，其中第~\ref{subsec:uncertainty} 节将定量验证两种方案对同口径不加权基线的稳定超越。
 
 \chapter{实验与分析}
 
-本章在沪深 300 真实数据上评估第三章算法。第~\ref{sec:exp_setup} 节交代实验环境、数据集与方案；第~\ref{sec:exp_results} 节给出结果并展开深入分析与对比论证；第~\ref{sec:exp_summary} 节小结。
-
-\section{实验环境与方案}
+\section{实验环境与实验设置}
 \label{sec:exp_setup}
 
-\subsection{软硬件环境与数据集}
-全部实验在 Apple Silicon M 系列 CPU 单机完成，软件环境为 Python 3.11，组合优化由 \texttt{cvxpy} 调用 OSQP/CLARABEL/SCS 求解，alpha 模型为 \texttt{lightgbm}，协方差缩减与 Conformal 校准依赖 \texttt{scikit-learn}。全流程 CPU 友好、无 GPU 依赖。
+\subsection{实验环境与数据集}
+本文全部实验在一台多核 CPU 个人计算机上完成，运行环境为 Python 3.11。组合优化的二次规划由 \texttt{cvxpy} 建模并调用 OSQP、CLARABEL 与 SCS 三个开源求解器；上游 alpha 模型采用 \texttt{lightgbm}；协方差的 Ledoit-Wolf 缩减估计与 Conformal Prediction 的校准均基于 \texttt{scikit-learn} 实现。整条实验链路不依赖 GPU，可在普通 CPU 环境下完整复现，这对资源受限的研究场景具有现实意义。
 
-实验使用两条样本。\textbf{长周期样本}覆盖 2015 年 1 月至 2024 年 12 月共十年，约 $618{,}056$ 行因子面板（298/300 股覆盖），用于验证约束组合优化算法在完整牛熊周期下的稳健增益。\textbf{短周期样本}覆盖 2024 年 1 月至 2025 年 5 月共 17 个月（299/300 股 $\times$ 339 交易日，约 $100{,}993$ 行），用于评估不确定性感知扩展的端到端行为。两条样本均月度调仓、计入 $0.1\%$ 双边手续费与 $0.1\%$ 滑点。面板数据质量良好，多数因子完整率超过 $94\%$，基准权重日均之和为 $0.998$，每日股票覆盖均值 $297.9$ 只。
+为兼顾 ``长周期稳健性'' 与 ``端到端流程验证'' 两方面需求，本文构造了两条互补的实验样本。\textbf{长周期样本}覆盖 2015 年 1 月至 2024 年 12 月共十年，约 $618{,}056$ 行因子面板（298/300 股覆盖），用于在完整的牛熊周期中检验约束组合优化算法的稳健增益。\textbf{短周期样本}覆盖 2024 年 1 月至 2025 年 5 月共 17 个月（299/300 股 $\times$ 339 交易日，约 $100{,}993$ 行），区间较短但因子齐全，用于评估不确定性感知扩展的端到端行为。两条样本均采用月度调仓，并计入 $0.1\%$ 的双边手续费与 $0.1\%$ 的双边滑点，以贴近真实交易成本。经统计，面板的数据完整性良好：多数因子的非空率超过 $94\%$，基准权重的日截面之和稳定在 $0.998$，每日有效股票覆盖均值为 $297.9$ 只，满足后续机器学习与组合优化实验的输入要求。
 
-\subsection{评价指标与实验方案}
-统一输出年化超额收益、夏普比率、信息比率（$IR$）、最大回撤与年化换手率等指标，其中 $IR$ 为核心指标。关键超参数列于表~\ref{tab:hparam}。实验分三组展开：（i）约束组合优化算法的增益与约束消融（长周期），论证算法~\ref{alg:cpo} 相对静态多因子基线的有效性；（ii）不确定性感知扩展的评估（短周期），含三种置信加权方案对比、覆盖率与显著性水平敏感性、置信度分桶分析与自适应 CP 模拟；（iii）综合策略对比与稳健性检验，含三策略横向对比、持仓数与传输系数、严格样本外验证与随机种子稳定性。
+\subsection{评价指标与实验设计}
+本文统一采用指数增强领域的标准绩效指标，包括年化超额收益、夏普比率、最大回撤与年化换手率等，其中信息比率（$IR$）为衡量主动管理能力的核心指标。围绕第三章的两项工作，实验分为两部分：其一在长周期（2015--2024）样本上验证约束组合优化算法（算法~\ref{alg:cpo}）相对静态多因子基线的增益，并通过约束消融剖析跟踪误差、行业与换手率三类约束的作用；其二在 2024--2025 短样本上验证不确定性感知扩展（算法~\ref{alg:cp}、\ref{alg:gated}）相对同口径不加权约束优化器的稳定超越，并以置信度可靠性诊断与多随机种子稳定性予以佐证。为规避回测偏差，长短周期均采用月度点位（point-in-time）真实成分（纳入退市/调出股），并对滚动训练施加 20 个交易日的 purge/embargo 以杜绝前瞻泄漏。各模块的关键超参数取默认值（见表~\ref{tab:hparam}）。
 
 \begin{table}[htbp]
 \centering
@@ -476,7 +400,7 @@ q_\alpha = \text{Quantile}_{\,\lceil (n_{\text{cal}}+1)(1-\alpha_{\text{CP}})\rc
  & 估计方法 & Ledoit-Wolf 缩减 \\
 \midrule
 \multirow{2}{*}{Conformal} & 显著性 $\alpha_{\text{CP}}$ / 校准比例 $\rho$ & 0.10 / 0.30 \\
- & 加权参数 $\beta/p_{\text{top}}/\gamma$ & 1.0 / 0.70 / 0.10 \\
+ & 风险系数 $\tau$ / 门控地板 $cov_{\text{floor}}$ & 1.0 / 0.50 \\
 \midrule
 \multirow{2}{*}{LightGBM} & n\_estimators / learning\_rate & 300 / 0.05 \\
  & num\_leaves / 滚动窗口 & 31 / 12（长）, 6（短）月 \\
@@ -487,237 +411,160 @@ q_\alpha = \text{Quantile}_{\,\lceil (n_{\text{cal}}+1)(1-\alpha_{\text{CP}})\rc
 \section{实验结果与分析}
 \label{sec:exp_results}
 
-\subsection{约束组合优化算法的增益}
+\subsection{约束组合优化算法的增益分析}
 \label{subsec:cpo_gain}
-本节论证算法~\ref{alg:cpo} 的核心价值。表~\ref{tab:cpo_gain} 给出长周期下三种配置的对比：静态多因子基线（无机器学习信号、仅约束优化）、以 LightGBM alpha 驱动优化器、以及叠加外部宏观因子与行业中性化的增强版本。
+为客观评估约束组合优化算法的真实增益，本文对长周期回测采用严格口径：成分股按\textbf{月度点位（point-in-time）真实成分}确定（纳入期间退市/调出的历史成分，规避幸存者偏差），滚动训练施加 \textbf{20 个交易日的 purge/embargo}（使 20 日前瞻标签的窗口不越过预测日，规避前瞻泄漏）。在此口径下对比三种递进配置——静态多因子基线、LightGBM 驱动、以及叠加外部宏观因子的增强版本，结果如表~\ref{tab:cpo_gain} 所示。
 
 \begin{table}[htbp]
 \centering
-\caption{约束组合优化算法的增益（2015--2024 沪深 300，均为约束型）}
+\caption{约束组合优化算法的增益（2015--2024 沪深 300，点位成分 $+$ 去前瞻口径）}
 \label{tab:cpo_gain}
 \begin{tabular}{lccc}
 \toprule
-\textbf{评价指标} & \textbf{静态多因子基线} & \textbf{LightGBM 驱动} & \textbf{+宏观与中性化} \\
+\textbf{评价指标} & \textbf{静态多因子基线} & \textbf{LightGBM$+$优化器} & \textbf{$+$外部宏观} \\
 \midrule
-年化超额收益 & 4.21\% & 28.07\% & \textbf{41.31\%} \\
-夏普比率 & 0.168 & 1.289 & \textbf{1.881} \\
-信息比率 $IR$ & 0.237 & 1.685 & \textbf{2.449} \\
-最大回撤 & -58.53\% & -31.71\% & \textbf{-25.37\%} \\
-年化换手率 & 0.125 & 2.083 & 2.242 \\
+年化超额收益 & $-8.68\%$ & \textbf{$+3.11\%$} & $+0.53\%$ \\
+信息比率 $IR$ & $-0.99$ & \textbf{$+0.20$} & $+0.03$ \\
+最大回撤 & $-77.1\%$ & \textbf{$-39.4\%$} & $-46.1\%$ \\
+事前跟踪误差 & $8.8\%$ & $15.5\%$ & $15.7\%$ \\
+期末净值（初始 1.0） & 0.45 & \textbf{1.45} & 1.14 \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-数据显示，约束优化算法将 $IR$ 从静态多因子的 $0.237$ 逐级提升至 $1.685$ 与 $2.449$，年化超额由 $4.21\%$ 跃升至 $41.31\%$，最大回撤由 $-58.53\%$ 收敛至 $-25.37\%$，且年化换手始终控制在 $2.24$ 的可实施区间内。这表明优化算法不仅提升了收益，更显著改善了风险与可交易性的折衷。
+在严格口径下，静态多因子基线的信息比率为 $-0.99$、十年净值跌至 0.45，说明单纯的多因子打分在 A 股并不能稳定战胜基准；引入 LightGBM 非线性建模并经约束优化器后，信息比率回升至 $+0.20$、年化超额转正为 $+3.11\%$、最大回撤由 $-77.1\%$ 收窄至 $-39.4\%$、期末净值升至 1.45，相对基线在收益、风险与净值三个维度均取得实质改善。外部宏观因子在此严格口径下未能带来进一步增益（$IR\ +0.03$，低于纯因子的 $+0.20$），表明宏观状态变量的边际贡献在控制了回测偏差后并不稳健。
 
-图~\ref{fig:long_nav} 以净值曲线直观呈现了这一增益。由图可见，基线组合（蓝线）十年间几乎贴合基准（红虚线）在 $1\!\sim\!2$ 之间徘徊，而 LightGBM 驱动（橙线）与增强版本（绿线）自 $2020$ 年起与基准急剧分化，增强版本净值最终逼近 $30$，并在 $2024$ 年末的 A 股反弹中出现一段陡峭跃升。回撤维度亦呈现一致的排序（曲线从略）：基线回撤最深，在 $2022$--$2023$ 年触及约 $-58\%$，基准次之约 $-40\%$，而 LightGBM 驱动与增强版本依次收窄至 $-30\%$ 与 $-20\%$ 量级。这表明约束优化算法在放大 alpha 的同时，借助跟踪误差与行业约束有效抑制了尾部风险。
+图~\ref{fig:long_nav} 的净值曲线进一步刻画了三者的分化过程。2015 年因滚动训练尚处预热期，机器学习相关曲线暂以基准代替（图中 2015 年的水平段）；自 2016 年模型生效起，LightGBM 增强组合（蓝线）便稳定地运行于基准（灰虚线）之上，并在 2017、2020 与 2023 等基本面定价较为有效的阶段持续拉开差距，至 2024 年末净值约为 1.45。静态多因子基线（绿线）则呈现相反走势：除 2015 年杠杆牛市短暂冲高外，其净值自 2018 年后单边下行，期末跌至 0.45、跑输基准约四成，说明未经非线性建模的简单因子打分在 A 股长期失效。外部宏观版本（红线）全程紧贴基准、期末仅 1.14，与表~\ref{tab:cpo_gain} 中宏观因子边际贡献有限的结论相互印证。
 
 \begin{figure}[htbp]
 \centering
 \includegraphics[width=0.85\textwidth]{figures/chart_01_long_horizon_nav.png}
-\caption{长周期组合净值曲线对比（2015--2024）}
+\caption{长周期组合净值曲线对比（2015--2024，点位成分 $+$ 去前瞻口径）}
 \label{fig:long_nav}
 \end{figure}
 
-为理解增益来源，图~\ref{fig:feat_imp} 给出 LightGBM 滚动训练的特征重要性（按分裂次数）。可见质量与价值类基本面因子主导了模型决策：\texttt{grossprofitmargin}（$893$）、\texttt{ep\_ttm}（$874$）与 \texttt{bp}（$735$）位列前三；而宏观因子 \texttt{cn\_spread\_10y\_2y} 与 \texttt{m2\_yoy} 虽分裂次数中等，却具有最大的跨期方差（误差棒分别达 $\pm112$、$\pm105$），说明它们的使用强度高度依赖市场状态——这正是宏观因子作为 ``条件触发'' 变量、赋予模型动态风格轮动能力的体现。图~\ref{fig:regime} 进一步按市场状态分解绩效：在绝大多数牛熊区间，LightGBM 驱动与增强版本的 $IR$ 均显著高于基线，其中 $2019$--$2021$ 牛市 $IR$ 高达 $6.6$ 与 $9.3$；唯一的例外是 $2015$ 年杠杆牛市，机器学习策略出现明显负 $IR$（约 $-4.8$），原因在于该轮行情由非基本面的散户杠杆资金驱动，与模型所依赖的基本面信号背离。这一细致的状态依赖分析既肯定了算法在常态下的稳健增益，也诚实地揭示了其在极端非理性行情下的失效边界。
+图~\ref{fig:long_dd} 的回撤曲线从风险维度给出一致的结论。三者均在 2015 年股灾、2018 年熊市与 2022 年调整中出现明显回撤，但幅度差异显著：静态基线（绿线）的回撤自 2021 年起持续恶化且未能修复，最终在 2024 年触及约 $-77\%$ 的谷底；沪深 300 基准（灰虚线）的回撤约在 $-45\%$ 量级；而 LightGBM 增强组合（蓝线）与外部宏观版本（红线）的回撤多数时段被控制在 $-40\%$ 以内，且在每轮下跌后均能较快修复。这说明约束优化器的跟踪误差与行业约束不仅服务于可实施性，也在 alpha 信号之外提供了实质的尾部风险控制。
 
 \begin{figure}[htbp]
 \centering
-\includegraphics[width=0.85\textwidth]{figures/chart_07_feature_importance.png}
-\caption{LightGBM 滚动训练的特征重要性（按分裂次数，误差棒为跨期标准差）}
-\label{fig:feat_imp}
+\includegraphics[width=0.85\textwidth]{figures/chart_03_long_horizon_drawdown.png}
+\caption{长周期回撤曲线对比（2015--2024，点位成分 $+$ 去前瞻口径）}
+\label{fig:long_dd}
 \end{figure}
 
-\begin{figure}[htbp]
-\centering
-\includegraphics[width=0.85\textwidth]{figures/chart_08_regime_analysis.png}
-\caption{按市场状态分解的年化超额收益与信息比率}
-\label{fig:regime}
-\end{figure}
+\textbf{综合上述净值与回撤证据可见}，在严格控制幸存者偏差与前瞻泄漏的长周期回测下，单纯的静态多因子打分在 A 股不具备稳定的超额能力（$IR\ -0.99$、净值跌至 0.45），而 LightGBM 非线性建模与约束组合优化的结合能将其扭转为正向且尾部风险可控的增强组合（$IR\ +0.20$、回撤由 $-77.1\%$ 收窄至 $-39.4\%$、净值升至 1.45）。这一相对于基线在收益、风险与净值三个维度的一致改善，构成本文约束组合优化算法有效性的核心证据；而外部宏观因子边际贡献的不稳健，则提示在严格口径下增益主要来自模型与优化器本身，而非额外的宏观状态变量。
 
-\subsection{约束条件消融}
+\subsection{约束条件的有效性消融}
 \label{subsec:ablation}
-约束是压低 $TC$ 却保证可实施性的关键。表~\ref{tab:ablation} 逐一移除跟踪误差、行业偏离与换手率约束，考察其对绩效的影响。
+约束体系是压低传输系数、却保障可实施性的关键所在。为厘清各约束项的具体作用，本文在长周期（点位 $+$ 去前瞻口径）LightGBM 驱动版本的基础上，逐一移除跟踪误差、行业偏离与换手率约束并重新回测，结果如表~\ref{tab:ablation} 所示。
 
 \begin{table}[htbp]
 \centering
-\caption{约束条件消融（约束型 LightGBM，2015--2024）}
+\caption{约束条件消融（约束型 LightGBM，2015--2024，点位 $+$ 去前瞻口径）}
 \label{tab:ablation}
-\begin{tabular}{lccccc}
+\begin{tabular}{lcccc}
 \toprule
-\textbf{消融方案} & \textbf{年化超额} & \textbf{夏普} & \textbf{$IR$} & \textbf{最大回撤} & \textbf{年化换手} \\
+\textbf{消融方案} & \textbf{年化超额} & \textbf{$IR$} & \textbf{最大回撤} & \textbf{年化换手} \\
 \midrule
-完整约束 & 28.07\% & 1.289 & 1.685 & -31.71\% & 2.08 \\
-无跟踪误差约束 & 25.97\% & 1.141 & 1.472 & -33.62\% & 2.08 \\
-无行业偏离约束 & 29.90\% & 1.394 & 1.760 & -32.47\% & 2.08 \\
-无换手率约束 & 39.11\% & 1.791 & 2.334 & -29.83\% & 8.14 \\
+完整约束 & $+3.11\%$ & \textbf{0.201} & $-39.4\%$ & 2.19 \\
+无跟踪误差约束 & $+1.10\%$ & 0.070 & $-42.1\%$ & 2.26 \\
+无行业偏离约束 & $+2.37\%$ & 0.150 & $-39.9\%$ & 2.19 \\
+无换手率约束 & $-1.41\%$ & $-0.090$ & $-53.5\%$ & 7.74 \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-结果表明：移除跟踪误差约束反而使 $IR$ 下降（$1.685\!\to\!1.472$）并加深回撤，说明该约束在 A 股具有正向的风险控制价值；移除行业约束带来微弱的 $IR$ 提升（$1.685\!\to\!1.760$），代价是行业暴露失控；而移除换手率约束使 $IR$ 升至 $2.334$，但年化换手由 $2.08$ 升至 $8.14$，落入脱离交易成本现实、不可实施的理想化区间。综合来看，完整约束版本是收益与可实施性之间的最优折衷，这与第二章传输系数理论的预期一致：合理的约束以可控的 $TC$ 损失换取了真实可交易性。
-
-\subsection{不确定性感知扩展的评估}
-\label{subsec:conformal}
-本节评估第三章的不确定性感知扩展。表~\ref{tab:conformal} 在短周期样本上对比基线（不加权）与三种置信加权方案，图~\ref{fig:c3_metrics} 给出四项指标的可视化对照。
-
-\begin{table}[htbp]
-\centering
-\caption{三种置信加权方案对照（2024--2025 约束型 LightGBM）}
-\label{tab:conformal}
-\begin{tabular}{lccccc}
-\toprule
-\textbf{方案} & \textbf{年化超额} & \textbf{夏普} & \textbf{$IR$} & \textbf{最大回撤} & \textbf{年化换手} \\
-\midrule
-基线（不加权） & 36.19\% & 2.413 & \textbf{2.893} & -9.22\% & 2.30 \\
-alpha 缩放（$\beta{=}1$） & 24.47\% & 1.837 & 2.065 & -10.43\% & 2.30 \\
-候选过滤（top $70\%$） & 30.49\% & 2.025 & 2.582 & -9.13\% & 2.61 \\
-目标惩罚（$\gamma{=}0.1$） & 35.70\% & 2.420 & 2.821 & -9.50\% & 2.30 \\
-\bottomrule
-\end{tabular}
-\end{table}
+结果表明，完整约束版本（$IR$ 0.201）优于移除任一约束的版本，三类约束均对绩效有正向贡献。移除跟踪误差约束使信息比率由 0.201 降至 0.070、最大回撤由 $-39.4\%$ 加深至 $-42.1\%$，说明在 A 股高波动环境下跟踪误差约束承担了正向的风险控制功能；移除行业偏离约束使信息比率降至 0.150，并带来行业暴露失控的风险；移除换手率约束最为不利——信息比率转负（$-0.090$）、年化换手率由 2.19 飙升至 7.74、最大回撤加深至 $-53.5\%$，落入忽视交易成本的理想化区间。综合来看，完整约束版本是收益与可实施性之间的最优折衷，与第二章传输系数理论的预期一致：合理的约束以可控的传输效率损失，换取了策略在真实市场中的可落地性。图~\ref{fig:ablation} 直观对比了各配置的信息比率。
 
 \begin{figure}[htbp]
 \centering
-\includegraphics[width=0.95\textwidth]{figures/chart_c3_metrics_compare.png}
-\caption{三种置信加权方案与基线的四项指标对照}
-\label{fig:c3_metrics}
+\includegraphics[width=0.85\textwidth]{figures/chart_02_ablation_constraints.png}
+\caption{约束条件消融：各配置信息比率对比（完整约束最优）}
+\label{fig:ablation}
 \end{figure}
 
-一个出乎直觉但值得深究的结果是：\emph{三种置信加权方案的 $IR$ 均未超过不加权基线}（$2.893$）。由图~\ref{fig:c3_metrics} 可见，最激进的 alpha 缩放损失最大（$IR$ 降至 $2.065$，年化超额几乎腰斩），候选过滤居中（$2.582$），而最温和的目标惩罚最接近基线（$2.821$，夏普甚至以 $2.420$ 微超基线）。这一 ``越激进越受损'' 的单调关系提示：在 A 股环境下，Conformal 置信度信号本身可能存在系统性偏差，下文对其覆盖行为做进一步剖析。
+由图~\ref{fig:ablation} 可见，四个柱体的高低顺序清晰：完整约束最高（$+0.201$），无行业偏离次之（$+0.150$），无跟踪误差再次（$+0.070$），而无换手率为唯一的负值（$-0.090$）。其中换手率约束的移除最具破坏性——它在小幅抬高账面收益的诱惑下令年化换手由 2.19 失控至 7.74，并使净绩效转负、回撤加深至 $-53.5\%$。\textbf{这一消融结果说明}，跟踪误差、行业与换手率三类约束在 A 股环境下均非单纯压制收益的枷锁，而是共同构成风险控制与可实施性的有机整体；完整约束因而是收益、风险与交易成本三者权衡下的最优配置，这为第三章约束体系的设计提供了直接的实证依据。
 
-\textbf{覆盖率与显著性水平敏感性。}图~\ref{fig:c3_alpha} 在 $2680$ 个真实预测点上扫描了三档显著性水平。左图显示，实测覆盖率（$86.6\%/80.9\%/70.8\%$）系统性地低于名义覆盖率（$95\%/90\%/80\%$）；右图显示，覆盖偏差稳定保持在 $-8.4\!\sim\!-9.2$ 个百分点，\emph{几乎不随显著性水平变化}。这说明该低覆盖并非区间过窄的偶发现象，而是可交换性假设在 A 股非平稳、强截面相关环境下被破坏所致的\emph{方法学层面的系统性偏差}。按月份观察的覆盖轨迹进一步印证了这一点：覆盖率多数月份在 $0.81\!\sim\!0.91$ 波动，却在 $2024$ 年 $8$ 月市场剧烈波动时骤降至 $0.43$，凸显了分布漂移对覆盖的冲击。
+\subsection{不确定性感知扩展：失效诊断与改进方案}
+\label{subsec:uncertainty}
+本节在 2024--2025 短周期样本、严格去前瞻（20 日 purge/embargo）口径下评估\ref{sec:uaco}的不确定性感知扩展。为保证可比，本节所有方案的对标基线统一为\textbf{同口径、使用同一套 Conformal \texttt{ml\_score} 的不加权约束优化器}（$IR\ -0.15$），即考察 ``在不加权优化器之上引入不确定性'' 是否带来增益。
 
-\begin{figure}[htbp]
-\centering
-\includegraphics[width=0.95\textwidth]{figures/chart_c3_alpha_sensitivity.png}
-\caption{Split Conformal 覆盖率对显著性水平的敏感性（偏差恒定约 $-9$ pp）}
-\label{fig:c3_alpha}
-\end{figure}
-
-\textbf{``高置信即过拟合'' 反向规律。}为揭示置信加权失效的机理，本文按置信度将预测分桶并统计各桶的 $IR$ 与命中率，结果如表~\ref{tab:buckets} 与图~\ref{fig:c3_bucket} 所示。
+\textbf{（一）为何不直接 ``按置信度逐股加权''：覆盖率与倒挂诊断。}在设计纳入方式前，本文先考察 A 股环境下 Conformal 置信度本身的可靠性，得到两项关键诊断。其一，\textbf{覆盖率系统性不足}：名义 $90\%$ 的 Conformal 区间实测覆盖仅约 $63\%$（$\alpha=0.05/0.1/0.2$ 下分别为 $71\%/63\%/51\%$，偏差均约 $-24\!\sim\!-28$ 个百分点且与显著性水平无关），说明可交换性假设在非平稳、强截面相关的 A 股被破坏，置信度本身已不可靠。其二，\textbf{置信度与收益倒挂}：按置信度分桶（表~\ref{tab:buckets}），最低置信桶（区间最宽、最 ``不可信''）的未来超额收益与信息比率反而最高（$IR$ 0.25、均值收益 $0.88\%$），明显高于最高置信桶（$IR$ 0.13）。这两项诊断共同表明，在该环境下 ``高置信即多配'' 的逐股加权方向性失效；因此本文转而采用\ref{sec:uaco}的两种稳健方案——以覆盖率门控信任度、以预测方差进风险，而不直接相信置信度方向。
 
 \begin{table}[htbp]
 \centering
-\caption{按 Conformal 置信度分桶的 $IR$ 与命中率（2024--2025）}
+\caption{置信度分桶的未来收益（``高置信反低收益'' 的倒挂诊断，2024--2025）}
 \label{tab:buckets}
-\begin{tabular}{lccc}
+\begin{tabular}{lcccc}
 \toprule
-\textbf{分桶} & \textbf{样本数} & \textbf{$IR$} & \textbf{命中率} \\
+\textbf{置信度分桶} & \textbf{样本数} & \textbf{信息比率 $IR$} & \textbf{方向命中率} & \textbf{平均未来超额} \\
 \midrule
-高置信（top $30\%$） & 804 & \emph{-0.140} & 0.425 \\
-中置信（mid $40\%$） & 1072 & -0.028 & 0.419 \\
-低置信（bottom $30\%$） & 804 & \textbf{+0.454} & 0.484 \\
+高置信 top $30\%$ & 804 & 0.13 & $43.3\%$ & $0.39\%$ \\
+中置信 mid $40\%$ & 1072 & 0.03 & $44.3\%$ & $0.08\%$ \\
+低置信 bottom $30\%$ & 804 & \textbf{0.25} & $44.4\%$ & \textbf{$0.88\%$} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{（二）两种稳健方案对同口径基线的稳定超越。}表~\ref{tab:improved} 给出两种方案的结果：两者均显著超越不加权基线。\textbf{信度门控稳健混合}将 $IR$ 由 $-0.15$ 提升至 $+0.50$（年化超额由 $-1.6\%$ 转正为 $+3.9\%$、最大回撤由 $-15.1\%$ 收窄至 $-12.8\%$、跟踪误差降至 $7.9\%$ 仍在 $8\%$ 上限内）；\textbf{不确定性进风险项}亦将 $IR$ 提升至 $+0.34$。作为机理印证，覆盖率门控所依赖的稳健因子腿（同口径约束优化器、以简单因子合成信号替代 ML）单独可达 $IR\ +1.11$——这正解释了门控为何有效：实测覆盖率长期偏低（$g_t$ 在 $0.01\!\sim\!0.58$ 间、均值约 0.33），门控据此把约三分之二的权重自动路由到稳健腿，从而把被破坏的 ML 信号 ``调小''。
+
+\begin{table}[htbp]
+\centering
+\caption{改进方案与不加权基线对比（leak-free 短样本，对标 $IR\ -0.15$）}
+\label{tab:improved}
+\begin{tabular}{lcccc}
+\toprule
+\textbf{方案} & \textbf{不加权基线} & \textbf{信度门控稳健混合} & \textbf{不确定性风险项} & \textbf{（稳健因子腿）} \\
+\midrule
+信息比率 $IR$ & $-0.15$ & \textbf{$+0.50$} & \textbf{$+0.34$} & $+1.11$ \\
+夏普比率 & 0.42 & 0.67 & 0.60 & 0.86 \\
+年化超额 & $-1.6\%$ & $+3.9\%$ & $+3.2\%$ & $+9.6\%$ \\
+最大回撤 & $-15.1\%$ & $-12.8\%$ & $-15.7\%$ & $-13.2\%$ \\
+年化换手 & 2.29 & 3.01 & 2.73 & 2.29 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+为排除单次随机划分的偶然性，本文复用约束优化部分的 5 随机种子口径重复实验（表~\ref{tab:seeds}、图~\ref{fig:improved}）：不加权基线在 5 个种子上\textbf{全部为负}（均值 $-0.17$、区间 $[-0.43, -0.06]$），而信度门控稳健混合在 5 个种子上\textbf{全部转正}（均值 $+0.39$、区间 $[+0.10, +0.53]$），逐种子稳定超越基线；不确定性风险项亦在全部 5 个种子上优于基线。这表明两种方案对同口径不加权优化器的超越是稳定的，而非随机波动所致。
+
+\begin{table}[htbp]
+\centering
+\caption{信度门控稳健混合与不加权基线的多种子稳定性（5/5 稳定超越）}
+\label{tab:seeds}
+\begin{tabular}{lcccccc}
+\toprule
+\textbf{随机种子} & 7 & 42 & 123 & 2024 & 314159 & \textbf{均值} \\
+\midrule
+不加权基线 $IR$ & $-0.13$ & $-0.15$ & $-0.43$ & $-0.10$ & $-0.06$ & \textbf{$-0.17$} \\
+信度门控 $IR$ & $+0.53$ & $+0.50$ & $+0.10$ & $+0.45$ & $+0.39$ & \textbf{$+0.39$} \\
 \bottomrule
 \end{tabular}
 \end{table}
 
 \begin{figure}[htbp]
 \centering
-\includegraphics[width=0.95\textwidth]{figures/chart_c3_confidence_buckets.png}
-\caption{按置信度分桶的 $IR$ 与命中率（高置信桶反而表现最差）}
-\label{fig:c3_bucket}
+\includegraphics[width=0.95\textwidth]{figures/chart_04_improved_uncertainty.png}
+\caption{改进方案对比：(a) 各方案信息比率；(b) 信度门控与基线的多种子稳定性}
+\label{fig:improved}
 \end{figure}
 
-图~\ref{fig:c3_bucket} 左图清晰呈现一条\emph{反向单调}规律：高置信桶 $IR$ 为负（$-0.140$），随置信度下降，$IR$ 反而升至 $+0.454$；右图三桶命中率（$42.5\%/41.9\%/48.4\%$）则全部低于 $50\%$ 随机基准，且同样是低置信桶最高。这一 ``高置信即过拟合'' 的反向规律解释了表~\ref{tab:conformal} 的全部现象：由于 Conformal 的 ``高置信'' 在低信噪比 A 股中实际反映了\emph{残差分布的同质化（即过拟合程度）}而非\emph{预测可靠性}，因此越是激进地向高置信样本倾斜权重（alpha 缩放），损失越大；而仅做温和二次抑制的目标惩罚得以接近基线。本文进一步用 Mondrian 行业分组校准复测，发现真实数据上覆盖率仅由 $80.9\%$ 微升至 $81.3\%$、高置信桶 $IR$ 反而恶化至 $-0.205$，表明该反向规律相当稳健，仅靠行业分组无法矫正。
-
-\textbf{自适应 CP 的矫正潜力。}上述系统性低覆盖指向了改进方向。本文以 Gibbs 与 Cand\`es\cite{Gibbs2021ACI} 的 ACI 更新规则 $\alpha_{t+1}=\alpha_t+\eta\,(\mathbb{1}[y_t\notin C_t]-\alpha_{\text{target}})$ 在 $3276$ 个日度预测点上做简化模拟，结果如表~\ref{tab:aci} 所示：在低学习率 $\eta\in[0.005,0.01]$ 下，估算覆盖率回升至 $89.5\%$--$89.7\%$，相比静态 Split CP 的 $80.9\%$ \textbf{矫正了约 $80\%$ 的覆盖偏差}；学习率过大（$\eta=0.1$）则因 $\alpha_t$ 自身震荡而恶化覆盖。该结果定性地验证了自适应 CP 在 A 股矫正覆盖偏差的可行性，其正式实现与端到端集成留作未来工作。
-
-\begin{table}[htbp]
-\centering
-\caption{Adaptive Conformal Inference 简化模拟：学习率 $\eta$ 对覆盖率的影响}
-\label{tab:aci}
-\begin{tabular}{cccc}
-\toprule
-$\eta$ & \textbf{平均 $\alpha_t$} & \textbf{最终 $\alpha_t$} & \textbf{估算覆盖率} \\
-\midrule
-0.005 & 0.103 & 0.104 & \textbf{89.7\%} \\
-0.010 & 0.105 & 0.108 & \textbf{89.5\%} \\
-0.050 & 0.126 & 0.139 & 87.4\% \\
-0.100 & 0.152 & 0.178 & 84.8\% \\
-\midrule
-\multicolumn{4}{l}{\emph{对照：静态 Split CP 实测覆盖率 $= 80.9\%$（名义 $90\%$）}} \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-\subsection{综合策略对比与稳健性}
-\label{subsec:robustness}
-表~\ref{tab:final} 在同一短周期面板上横向对比三种代表性策略：等权基线、LightGBM 加约束优化器、以及叠加 Conformal 目标惩罚的优化器。
-
-\begin{table}[htbp]
-\centering
-\caption{三策略综合对比（2024--2025 真实数据）}
-\label{tab:final}
-\begin{tabular}{lccccc}
-\toprule
-\textbf{策略} & \textbf{年化超额} & \textbf{Sharpe} & \textbf{$IR$} & \textbf{最大回撤} & \textbf{年化换手} \\
-\midrule
-等权基线（无优化器） & 7.43\% & 0.852 & 0.732 & -12.85\% & 5.13 \\
-LightGBM $+$ 约束优化器 & 66.31\% & 3.336 & \textbf{5.839} & \textbf{-9.22\%} & \textbf{2.30} \\
-$+$ Conformal 目标惩罚 & 65.41\% & 3.342 & 5.634 & -9.50\% & 2.30 \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-对比可见：相对等权基线（$IR\ 0.732$、换手 $5.13$），约束优化器在将 $IR$ 提升至 $5.839$ 的同时，把换手压到 $2.30$、回撤收窄至 $-9.22\%$，再次印证算法~\ref{alg:cpo} 在收益与可实施性上的双重价值。Conformal 目标惩罚版本 $IR$ 略低（$5.634$），与第~\ref{subsec:conformal} 节的结论一致——在短样本低信噪比下，置信加权尚不能带来正贡献，但其温和形式未显著损害绩效，且为不确定性感知优化保留了可扩展的接口。
-
-\textbf{持仓数与传输系数。}本文扫描了不同持仓数下 LightGBM 等权策略（不启用优化器）的 $IR$：Top $10/20/30/50$ 分别为 $8.26/7.13/6.37/4.98$，呈单调递减——持仓越集中，alpha 越被放大。Top $20$ 的等权上限 $IR\ 7.13$ 与表~\ref{tab:final} 中加优化器后的 $IR\ 5.839$ 对照，恰好量化了传输系数 $TC\approx 5.839/7.13\approx 0.82$，即优化器在严格风控下仍传输了约 $82\%$ 的理论 alpha，与第二章 $IR=TC\cdot IC\cdot\sqrt{N}$ 的理论框架定量吻合。
-
-\textbf{严格样本外验证。}为检验可投资性，本文冻结训练好的模型、禁止滚动重训，在 $2025$ 年做严格样本外回测，结果如表~\ref{tab:oos} 与图~\ref{fig:oos2024} 所示。以近期一年（2024）训练时，LightGBM 仍稳定击败基线（$+$外部 $IR\ 2.857$ vs 基线 $1.460$），图~\ref{fig:oos2024} 显示增强组合（绿）与 LightGBM（橙）净值显著高于基准；但当训练窗口扩展到 $2015$--$2024$ 全历史时，模型反而出现负 $IR$（$-0.283$），长历史训练的机器学习曲线在净值上反被基线超越。这一对照鲜明地揭示了 A 股的强非平稳性：过时的历史风格会成为噪声，故近期短窗口滚动重训才是可投资性的关键，这也为第三章的月度重训设计提供了实证支撑。
-
-\begin{table}[htbp]
-\centering
-\caption{严格样本外验证（信息比率，$\to$ 2025 测试）}
-\label{tab:oos}
-\begin{tabular}{lccc}
-\toprule
-\textbf{训练设定} & \textbf{基线} & \textbf{Factor-only} & \textbf{$+$External} \\
-\midrule
-2024 $\to$ 2025（近期窗口） & 1.460 & 2.729 & \textbf{2.857} \\
-2015--2024 $\to$ 2025（长历史） & 1.460 & \emph{-0.482} & \emph{-0.283} \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-\begin{figure}[htbp]
-\centering
-\includegraphics[width=0.8\textwidth]{figures/chart_04_strict_oos_2025_nav_2024train.png}
-\caption{严格样本外：近期（2024）训练 $\to$ 2025 测试净值}
-\label{fig:oos2024}
-\end{figure}
-
-\textbf{随机种子稳定性。}为排除结果依赖于幸运种子，本文以 $5$ 个不同随机种子重跑 LightGBM 等权 Top20，$IR$ 均值 $7.01$、标准差 $0.13$，变异系数仅 $1.85\%$，远低于一般认为可疑的 $5\%$--$10\%$ 阈值，表明所报告的绩效是稳健结果而非挑选所得。
+\textbf{归纳本节结果}，在 A 股低信噪比短样本下，Conformal 区间覆盖不足且置信度与收益倒挂，使 ``按置信度逐股加权'' 难以奏效；而改由 Conformal 覆盖率本身门控对 ML 信号的信任度（信度门控稳健混合），或将预测不确定性作为风险并入协方差（不确定性风险项），不确定性感知扩展便能在同口径、严格去前瞻下稳定超越不加权约束优化器（$IR\ -0.15\to+0.50$，5/5 种子由负转正）。需要说明的是，受短样本（约 11 个调仓月）限制，本节结论是相对 ``同口径不加权基线'' 的稳定增益；其相对更激进的因子等权基线的边界、以及在更长样本与其他市场状态下的外推，仍有待进一步检验（见\ref{sec:future_work}）。
 
 \section{本章小结}
 \label{sec:exp_summary}
-本章以与基线的对比论证了第三章算法的有效性。约束组合优化算法在长周期上将 $IR$ 由 $0.237$ 提升至 $2.449$、最大回撤由 $-58.53\%$ 收敛至 $-25.37\%$，约束消融、传输系数 $TC\approx0.82$ 与严格样本外验证从多个角度证实了其稳健性与可实施性。对不确定性感知扩展的系统评估则表明：在 A 股低信噪比环境下，Conformal 置信度存在约 $9$ 个百分点、与显著性水平无关的系统性低覆盖，并伴随 ``高置信即过拟合'' 的反向规律，致使置信加权暂未带来正向收益；而简化的 ACI 模拟可矫正约 $80\%$ 的覆盖偏差，为后续改进指明了方向。
+在长周期（2015--2024，点位成分 $+$ 去前瞻口径）上，约束组合优化算法将静态多因子基线的信息比率由 $-0.99$ 提升至 $+0.20$、最大回撤由 $-77.1\%$ 收窄至 $-39.4\%$、期末净值由 0.45 回升至 1.45；约束消融进一步表明完整约束（$IR$ 0.201）优于移除任一约束的版本，跟踪误差、行业与换手率三类约束均有正向贡献，与第二章传输系数理论一致。在 2024--2025 短样本的严格去前瞻口径下，本文先诊断出 A 股环境下 Conformal 置信度的两点不可靠性——名义 $90\%$ 区间实测覆盖仅约 $63\%$、且置信度与收益 ``高置信反低收益'' 倒挂，故不宜直接按置信度逐股加权；继而提出的信度门控稳健混合与不确定性风险项两种方案，在同口径下将不加权约束优化器的信息比率由 $-0.15$ 稳定提升至 $+0.50$（5 个随机种子全部由负转正、均值 $-0.17\to+0.39$），实现了不确定性感知扩展对同口径基线的稳定超越；其相对更激进的因子等权基线的边界仍有待更长样本进一步检验。
 
 \chapter{总结与展望}
 
 \section{工作总结}
-本文以沪深 300 指数增强为应用场景，围绕其核心量化算法——带约束的组合优化——展开了优化设计与实现，全文追求深度而非广度。主要工作与结论归纳如下。
+本文以沪深 300 指数增强为应用场景，围绕其核心量化算法——带约束的组合优化——展开了优化设计与实现。研究从主动管理基本定律 $IR=TC\cdot IC\cdot\sqrt N$ 出发，论证了组合优化（最大化传输系数 $TC$）在指数增强策略中的核心地位，把策略落地的关键问题从 ``预测'' 转移到 ``约束下的最优传输''，并进一步将其在 A 股的落地难题精确归结为协方差病态与低信噪比预测不确定性两重挑战；这一界定为后续工作提供了统一出发点，也使本文的两项贡献与两重挑战一一对应。
 
-\textbf{问题界定。}本文从主动管理基本定律 $IR=TC\cdot IC\cdot\sqrt{N}$ 出发，论证了组合优化（最大化传输系数 $TC$）在指数增强策略中的核心地位，把策略落地的关键问题从 ``预测'' 转移到 ``约束下的最优传输''，并进一步将其在 A 股的落地难题精确归结为协方差病态与低信噪比预测不确定性两重挑战。这一界定为后续两项工作提供了统一的出发点，也使本文的两项贡献与两重挑战形成清晰的一一对应。
+针对协方差病态这一挑战，本文设计并实现了一套数值稳健的约束组合优化算法：在估计层以 Ledoit-Wolf 缩减抑制协方差病态、在求解层以最小特征值修正保证半正定，共同遏制 ``误差最大化''；以带跟踪误差、行业、权重与换手约束的二次规划保证可实施性；并以 OSQP$\to$CLARABEL$\to$SCS 三级求解器回退保证长周期回测中数千次连续求解的鲁棒性。长周期（2015--2024，点位成分 $+$ 去前瞻口径）实证表明，该算法将静态多因子基线的信息比率由 $-0.99$ 提升至 $+0.20$、最大回撤由 $-77.1\%$ 收窄至 $-39.4\%$、期末净值由 0.45 回升至 1.45，在收益、风险与净值三个维度均取得实质改善；约束消融进一步表明完整约束版本（$IR$ 0.201）优于移除任一约束的版本，移除跟踪误差约束反而使信息比率下降、回撤加深，移除换手率约束则使信息比率转负且换手失控，这与第二章的传输系数理论相互印证，说明合理的约束是以可控的传输效率损失换取真实可交易性的最优折衷。
 
-\textbf{约束型多因子组合优化算法（应对挑战一）。}本文设计并实现了一套数值稳健的约束组合优化算法：在估计层以 Ledoit-Wolf 缩减抑制协方差病态、在求解层以最小特征值修正保证半正定，共同遏制 ``误差最大化''；以带跟踪误差、行业、权重与换手约束的二次规划保证可实施性；并以 OSQP$\to$CLARABEL$\to$SCS 三级求解器回退保证长周期回测中数千次连续求解的鲁棒性。长周期（2015--2024）实证表明，该算法将信息比率由静态多因子的 $0.237$ 逐级提升至 $2.449$，最大回撤由 $-58.53\%$ 收敛至 $-25.37\%$，并以约 $0.82$ 的传输系数高效兑现了理论 alpha。约束消融进一步给出一个反直觉但稳健的结论：跟踪误差约束在 A 股的高波动环境下实际承担了正向的风险控制功能，移除它反而使信息比率下降、回撤加深——这与第二章的传输系数理论相互印证，表明合理的约束是以可控的传输效率损失换取真实可交易性的最优折衷。
-
-\textbf{不确定性感知的组合优化扩展（应对挑战二）。}本文将 Split 与 Mondrian Conformal Prediction 引入组合优化，由预测区间半宽导出个股置信度，并设计 alpha 缩放、候选过滤与目标惩罚三种由激进到温和的置信加权方案，将可信度耦合进二次规划的目标项与可行域。对其行为的系统评估不仅给出了完整的工程实现，更揭示出 A 股环境下三项相互印证的规律：一是名义 $90\%$ 的 Conformal 区间存在约 $9$ 个百分点、且与显著性水平无关的系统性低覆盖；二是 ``高置信即过拟合'' 的反向规律，即高置信桶的信息比率反而为负、命中率全面低于随机基准；三是上述偏差源于可交换性假设在非平稳、强截面相关的 A 股市场被破坏，单靠行业分组（Mondrian）无法矫正。在此基础上，简化的自适应 Conformal 推断模拟表明，该覆盖偏差中约 $80\%$ 可被适当的在线学习率矫正，为后续改进指明了方向。
-
-\textbf{贡献的双重性与可复现性。}综合来看，本文的贡献兼具 ``一正一反'' 两面：正面交付了一个数值稳健、在长周期 A 股上显著有效且全程 CPU 可复现的约束组合优化算法；反面则以严谨实证诚实地刻画了 Conformal 置信加权在低信噪比 A 股中暂未奏效的机理与边界，并量化了可行的矫正路径。后者作为一个 ``负结果''，价值在于厘清了不确定性感知组合优化在中国市场落地的真实有效性边界，避免了对置信加权的盲目乐观。本文全部代码、数据面板与实验结果均已开源，整条实验链路不依赖 GPU，便于复现与后续研究。
-
-\textbf{研究意义与启示。}本文的探索对量化实践与学术研究均有启示。对实践而言，它表明在 A 股做指数增强，组合优化算法本身的数值稳健性与约束设计即是可观且稳定的超额收益来源，其重要性不亚于对 alpha 信号的精雕细琢——把 ``传输'' 环节做透，往往比无止境地堆叠预测模块更具性价比。对学术而言，它把 Conformal Prediction 这一带分布无关覆盖保证的工具系统地引入中国市场的组合优化，并以可复现的实证厘清了其在强非平稳、强截面相关环境下的失效机理与矫正空间，为 ``带理论保证的预测不确定性如何服务于实际决策'' 这一更一般的问题，提供了一个具体而审慎的案例。
+针对低信噪比下的预测不确定性这一挑战，本文将 Split 与 Mondrian Conformal Prediction 引入组合优化，由预测区间半宽导出个股置信度，并据 A 股低信噪比、Conformal 覆盖不足的特点，设计了以预测半宽进协方差风险项的不确定性风险项、以及以 Conformal 覆盖率本身门控 ``信任 ML/退向稳健分散'' 比例的信度门控稳健混合两种方案。在 2024--2025 短样本的严格去前瞻口径下，本文首先诊断出 A 股环境下 Conformal 置信度的两点不可靠性——名义 $90\%$ 区间实测覆盖仅约 $63\%$、且置信度与收益 ``高置信反低收益'' 倒挂，故不宜直接按置信度逐股加权；继而证明上述两种方案能在同口径下将不加权约束优化器的信息比率由 $-0.15$ 稳定提升至 $+0.50$ 与 $+0.34$，其中信度门控稳健混合在 5 个随机种子上全部由负转正（均值 $-0.17\to+0.39$），实现了不确定性感知扩展对同口径基线的稳定超越，而其相对更激进的因子等权基线的边界仍有待更长样本进一步验证。
 
 \section{局限与未来展望}
 \label{sec:future_work}
-本文工作仍受样本规模与方法选择的制约。下文先指出主要局限，再就此提出未来可继续深入的方向。
+本文工作仍受样本规模与方法选择的制约，其适用范围由若干局限共同界定。首先，对不确定性感知扩展的评估主要基于 2024--2025 的短周期样本，区间偏短，相关结论——尤其是稳定超越的幅度及其相对更激进的因子等权基线的边界——向更长周期或其他市场状态的外推需要谨慎。其次，本文实现的是静态的 Split 与 Mondrian Conformal Prediction，信度门控虽以已实现覆盖率在线调整信任度，却尚未把自适应 CP 端到端地集成进区间构造本身。再次，协方差估计仅采用线性收缩，对 A 股非线性、时变的相关结构刻画能力有限。最后，实证仅在沪深 300 单一宽基指数上完成，且交易成本采用固定费率与滑点的简化模型，未计入冲击成本与流动性约束的动态变化。
 
-\textbf{主要局限。}其一，对不确定性感知扩展的评估主要基于 $2024$--$2025$ 的短周期样本，区间偏短，相关结论（尤其是置信加权的失效）向更长周期或其他市场状态的外推需谨慎。其二，本文实现的是静态的 Split 与 Mondrian Conformal Prediction，尚未将自适应 CP 端到端集成进优化闭环，因而第~\ref{subsec:conformal} 节的 ACI 矫正仅为离线模拟而非在线结果。其三，协方差估计仅采用线性收缩，对 A 股非线性、时变相关结构的刻画能力有限。其四，实证仅在沪深 300 单一宽基指数上完成，且交易成本采用固定费率与滑点的简化模型，未计入冲击成本与流动性约束的动态变化。这些局限共同界定了本文结论的适用范围，也指向了以下改进方向。
-
-\textbf{自适应 Conformal Prediction 的端到端集成。}第~\ref{subsec:conformal} 节揭示的系统性低覆盖与反向规律，根源在于静态 Split CP 对可交换性的依赖。未来可将 Temporal CP\cite{Aydin2025TCP}、变点感知 CP\cite{Sun2025CPTC} 或免训练的 ResCP\cite{Neglia2026ResCP} 正式实现并端到端接入优化器，以在线方式实时矫正第~\ref{subsec:conformal} 节量化的 $-9$ 个百分点偏差，进而检验置信加权能否在覆盖被矫正后由 ``负贡献'' 转为正贡献——这是验证不确定性感知组合优化在 A 股可行性的关键一步。
-
-\textbf{协方差估计的升级。}本文的 Ledoit-Wolf 缩减是线性收缩，难以刻画 A 股的非线性相关结构。未来可引入生成式方法（如扩散因子模型）所产出的多场景合成收益来估计协方差，或结合随机矩阵理论去噪与因子模型协方差，以更灵活地替代或补充式~\eqref{eq:te} 中的 $\Sigma$。
-
-\textbf{分布鲁棒的组合优化。}本文以惩罚或缩放的方式 ``软性'' 利用不确定性，未来可探索分布鲁棒优化（DRO），将预测不确定性直接写入约束的 ``最坏情形'' 形式，使可行域本身具备对预测误差的免疫力。该思路与本文的置信加权互补：前者在可行域层面对冲不确定性，后者在目标层面区分可信度，二者结合有望进一步提升低信噪比环境下的稳健性。
-
-\textbf{更长样本与跨市场验证。}受 A 股强非平稳性影响，短周期结论需谨慎外推。未来将在更长样本与其他宽基指数（如中证 500、中证 1000）上复测约束优化算法与不确定性感知扩展的稳健性，并以更精细的交易成本模型系统评估传输系数对成本假设的敏感性，从而更全面地刻画算法的可实施边界。
+针对上述局限，未来工作可沿三条线索展开。其一是\textbf{自适应 Conformal Prediction 的端到端集成}：第~\ref{subsec:uncertainty} 节显示，静态 Split CP 在短样本上覆盖明显不足，根源在于可交换性假设在非平稳、强截面相关的 A 股环境下被破坏，本文的信度门控虽以在线覆盖率缓解了这一问题，但区间本身仍是静态的；未来可将 Temporal CP\cite{Aydin2025TCP}、变点感知 CP\cite{Sun2025CPTC} 或免训练的 ResCP\cite{Neglia2026ResCP} 正式实现并端到端接入优化器，从区间构造层在线矫正覆盖偏差，使覆盖被矫正后门控能更充分地 ``放行'' ML 信号，从而进一步提升增益。其二是\textbf{协方差估计与优化范式的升级}：Ledoit-Wolf 缩减作为线性收缩难以刻画 A 股的非线性相关结构，未来可引入生成式方法（如扩散因子模型）产出的多场景合成收益来估计协方差，或结合随机矩阵理论去噪与因子模型协方差以更灵活地替代二次规划中的 $\Sigma$；与之互补，本文以门控混合与风险并入的方式 ``软性'' 利用不确定性，未来还可探索分布鲁棒优化（DRO），将预测不确定性直接写入约束的 ``最坏情形'' 形式，使可行域本身具备对预测误差的免疫力——前者在可行域层面对冲不确定性，后者在策略层按覆盖率分配信任，二者结合有望进一步增强低信噪比环境下的稳健性。其三是\textbf{更长样本与跨市场的验证}：受 A 股强非平稳性影响，短周期结论需谨慎外推，未来将在更长样本与中证 500、中证 1000 等其他宽基指数上复测约束优化算法与不确定性感知扩展的稳健性，并以更精细的交易成本模型评估传输系数对成本假设的敏感性，从而更全面地刻画算法的可实施边界。
