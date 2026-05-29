@@ -1,0 +1,275 @@
+\relax 
+\providecommand\hyper@newdestlabel[2]{}
+\@writefile{toc}{\contentsline {chapter}{\numberline {第\CJKnumber  {1}章}绪论}{1}{chapter.1}\protected@file@percent }
+\@writefile{lof}{\addvspace {10\p@ }}
+\@writefile{lot}{\addvspace {10\p@ }}
+\@writefile{toc}{\contentsline {section}{\numberline {第\CJKnumber  {1}节}研究背景与问题挑战}{1}{section.1.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {第\CJKnumber  {2}节}主要工作与贡献}{3}{section.1.2}\protected@file@percent }
+\newlabel{sec:contributions}{{第\CJKnumber  {2}节}{3}{}{section.1.2}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {第\CJKnumber  {3}节}论文组织结构}{3}{section.1.3}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {1.1}{\ignorespaces 本文三层研究框架：问题与挑战、研究内容与实现目标}}{4}{figure.caption.4}\protected@file@percent }
+\providecommand*\caption@xref[2]{\@setref\relax\@undefined{#1}}
+\newlabel{fig:framework}{{1.1}{4}{本文三层研究框架：问题与挑战、研究内容与实现目标}{figure.caption.4}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {1.1}{\ignorespaces 主要数学符号}}{4}{table.caption.5}\protected@file@percent }
+\newlabel{tab:symbols}{{1.1}{4}{主要数学符号}{table.caption.5}{}}
+\@writefile{toc}{\contentsline {chapter}{\numberline {第\CJKnumber  {2}章}背景知识与相关工作}{6}{chapter.2}\protected@file@percent }
+\@writefile{lof}{\addvspace {10\p@ }}
+\@writefile{lot}{\addvspace {10\p@ }}
+\@writefile{toc}{\contentsline {section}{\numberline {第\CJKnumber  {1}节}指数增强与组合优化的理论基础}{6}{section.2.1}\protected@file@percent }
+\newlabel{sec:bg_po}{{第\CJKnumber  {1}节}{6}{}{section.2.1}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {{2.1.1}}主动管理基本定律与传输系数}{6}{subsection.2.1.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {{2.1.2}}多因子 alpha 信号与机器学习预测}{7}{subsection.2.1.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {{2.1.3}}组合优化方法谱系与约束体系}{7}{subsection.2.1.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {{2.1.4}}协方差估计与误差最大化}{8}{subsection.2.1.4}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {第\CJKnumber  {2}节}不确定性量化与 Conformal Prediction}{9}{section.2.2}\protected@file@percent }
+\newlabel{sec:bg_cp}{{第\CJKnumber  {2}节}{9}{}{section.2.2}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {{2.2.1}}Conformal Prediction 框架与覆盖保证}{9}{subsection.2.2.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {{2.2.2}}条件覆盖与代表性变体}{9}{subsection.2.2.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {{2.2.3}}金融时序中的覆盖偏差与自适应 Conformal}{10}{subsection.2.2.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {第\CJKnumber  {3}节}本章小结}{10}{section.2.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {chapter}{\numberline {第\CJKnumber  {3}章}指数增强组合优化算法的设计与实现}{12}{chapter.3}\protected@file@percent }
+\@writefile{lof}{\addvspace {10\p@ }}
+\@writefile{lot}{\addvspace {10\p@ }}
+\@writefile{toc}{\contentsline {section}{\numberline {第\CJKnumber  {1}节}系统整体框架}{12}{section.3.1}\protected@file@percent }
+\newlabel{sec:framework}{{第\CJKnumber  {1}节}{12}{}{section.3.1}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {3.1}{\ignorespaces 指数增强系统整体架构（虚线框为本文核心算法，灰色虚线为闭环反馈路径）}}{13}{figure.caption.6}\protected@file@percent }
+\newlabel{fig:arch}{{3.1}{13}{指数增强系统整体架构（虚线框为本文核心算法，灰色虚线为闭环反馈路径）}{figure.caption.6}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {第\CJKnumber  {2}节}约束型多因子组合优化算法}{13}{section.3.2}\protected@file@percent }
+\newlabel{sec:cpo}{{第\CJKnumber  {2}节}{13}{}{section.3.2}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {{3.2.1}}优化问题的形式化}{13}{subsection.3.2.1}\protected@file@percent }
+\newlabel{eq:obj}{{3.1}{14}{}{equation.3.1}{}}
+\newlabel{eq:box}{{3.2}{14}{}{equation.3.2}{}}
+\newlabel{eq:te}{{3.3}{14}{}{equation.3.3}{}}
+\newlabel{eq:ind}{{3.4}{14}{}{equation.3.4}{}}
+\newlabel{eq:turn}{{3.5}{14}{}{equation.3.5}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {{3.2.2}}协方差估计与数值稳健性}{14}{subsection.3.2.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {{3.2.3}}算法描述与复杂度}{15}{subsection.3.2.3}\protected@file@percent }
+\@writefile{loa}{\contentsline {algorithm}{\numberline {1}{\ignorespaces 约束型多因子组合优化（单期调仓）}}{15}{algorithm.1}\protected@file@percent }
+\newlabel{alg:cpo}{{1}{15}{约束型多因子组合优化（单期调仓）}{algorithm.1}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {第\CJKnumber  {3}节}不确定性感知的组合优化扩展}{15}{section.3.3}\protected@file@percent }
+\newlabel{sec:uaco}{{第\CJKnumber  {3}节}{15}{}{section.3.3}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {{3.3.1}}基于 Conformal Prediction 的置信度构造}{15}{subsection.3.3.1}\protected@file@percent }
+\@writefile{loa}{\contentsline {algorithm}{\numberline {2}{\ignorespaces Split Conformal 校准与置信度构造}}{16}{algorithm.2}\protected@file@percent }
+\newlabel{alg:cp}{{2}{16}{Split Conformal 校准与置信度构造}{algorithm.2}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {{3.3.2}}三种置信加权方案}{16}{subsection.3.3.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {{3.3.3}}不确定性感知优化算法}{16}{subsection.3.3.3}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {3.2}{\ignorespaces 不确定性感知组合优化流程：置信度经三种方案之一耦合进约束 QP}}{17}{figure.caption.7}\protected@file@percent }
+\newlabel{fig:ua_flow}{{3.2}{17}{不确定性感知组合优化流程：置信度经三种方案之一耦合进约束 QP}{figure.caption.7}{}}
+\@writefile{loa}{\contentsline {algorithm}{\numberline {3}{\ignorespaces 不确定性感知组合优化（单期调仓）}}{17}{algorithm.3}\protected@file@percent }
+\newlabel{alg:uaco}{{3}{17}{不确定性感知组合优化（单期调仓）}{algorithm.3}{}}
+\@writefile{toc}{\contentsline {chapter}{\numberline {第\CJKnumber  {4}章}实验与分析}{19}{chapter.4}\protected@file@percent }
+\@writefile{lof}{\addvspace {10\p@ }}
+\@writefile{lot}{\addvspace {10\p@ }}
+\@writefile{toc}{\contentsline {section}{\numberline {第\CJKnumber  {1}节}实验环境与方案}{19}{section.4.1}\protected@file@percent }
+\newlabel{sec:exp_setup}{{第\CJKnumber  {1}节}{19}{}{section.4.1}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {{4.1.1}}软硬件环境与数据集}{19}{subsection.4.1.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {{4.1.2}}评价指标与实验方案}{19}{subsection.4.1.2}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {4.1}{\ignorespaces 核心超参数（默认取值）}}{20}{table.caption.8}\protected@file@percent }
+\newlabel{tab:hparam}{{4.1}{20}{核心超参数（默认取值）}{table.caption.8}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {第\CJKnumber  {2}节}实验结果与分析}{20}{section.4.2}\protected@file@percent }
+\newlabel{sec:exp_results}{{第\CJKnumber  {2}节}{20}{}{section.4.2}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {{4.2.1}}约束组合优化算法的增益}{20}{subsection.4.2.1}\protected@file@percent }
+\newlabel{subsec:cpo_gain}{{{4.2.1}}{20}{}{subsection.4.2.1}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {4.2}{\ignorespaces 约束组合优化算法的增益（2015--2024 沪深 300，均为约束型）}}{20}{table.caption.9}\protected@file@percent }
+\newlabel{tab:cpo_gain}{{4.2}{20}{约束组合优化算法的增益（2015--2024 沪深 300，均为约束型）}{table.caption.9}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {4.1}{\ignorespaces 长周期组合净值曲线对比（2015--2024）}}{21}{figure.caption.10}\protected@file@percent }
+\newlabel{fig:long_nav}{{4.1}{21}{长周期组合净值曲线对比（2015--2024）}{figure.caption.10}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {{4.2.2}}约束条件消融}{21}{subsection.4.2.2}\protected@file@percent }
+\newlabel{subsec:ablation}{{{4.2.2}}{21}{}{subsection.4.2.2}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {4.2}{\ignorespaces LightGBM 滚动训练的特征重要性（按分裂次数，误差棒为跨期标准差）}}{22}{figure.caption.11}\protected@file@percent }
+\newlabel{fig:feat_imp}{{4.2}{22}{LightGBM 滚动训练的特征重要性（按分裂次数，误差棒为跨期标准差）}{figure.caption.11}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {4.3}{\ignorespaces 按市场状态分解的年化超额收益与信息比率}}{22}{figure.caption.12}\protected@file@percent }
+\newlabel{fig:regime}{{4.3}{22}{按市场状态分解的年化超额收益与信息比率}{figure.caption.12}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {4.3}{\ignorespaces 约束条件消融（约束型 LightGBM，2015--2024）}}{23}{table.caption.13}\protected@file@percent }
+\newlabel{tab:ablation}{{4.3}{23}{约束条件消融（约束型 LightGBM，2015--2024）}{table.caption.13}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {{4.2.3}}不确定性感知扩展的评估}{23}{subsection.4.2.3}\protected@file@percent }
+\newlabel{subsec:conformal}{{{4.2.3}}{23}{}{subsection.4.2.3}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {4.4}{\ignorespaces 三种置信加权方案对照（2024--2025 约束型 LightGBM）}}{23}{table.caption.14}\protected@file@percent }
+\newlabel{tab:conformal}{{4.4}{23}{三种置信加权方案对照（2024--2025 约束型 LightGBM）}{table.caption.14}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {4.4}{\ignorespaces 三种置信加权方案与基线的四项指标对照}}{24}{figure.caption.15}\protected@file@percent }
+\newlabel{fig:c3_metrics}{{4.4}{24}{三种置信加权方案与基线的四项指标对照}{figure.caption.15}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {4.5}{\ignorespaces Split Conformal 覆盖率对显著性水平的敏感性（偏差恒定约 $-9$ pp）}}{24}{figure.caption.16}\protected@file@percent }
+\newlabel{fig:c3_alpha}{{4.5}{24}{Split Conformal 覆盖率对显著性水平的敏感性（偏差恒定约 $-9$ pp）}{figure.caption.16}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {4.5}{\ignorespaces 按 Conformal 置信度分桶的 $IR$ 与命中率（2024--2025）}}{24}{table.caption.17}\protected@file@percent }
+\newlabel{tab:buckets}{{4.5}{24}{按 Conformal 置信度分桶的 $IR$ 与命中率（2024--2025）}{table.caption.17}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {4.6}{\ignorespaces 按置信度分桶的 $IR$ 与命中率（高置信桶反而表现最差）}}{25}{figure.caption.18}\protected@file@percent }
+\newlabel{fig:c3_bucket}{{4.6}{25}{按置信度分桶的 $IR$ 与命中率（高置信桶反而表现最差）}{figure.caption.18}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {4.6}{\ignorespaces Adaptive Conformal Inference 简化模拟：学习率 $\eta $ 对覆盖率的影响}}{25}{table.caption.19}\protected@file@percent }
+\newlabel{tab:aci}{{4.6}{25}{Adaptive Conformal Inference 简化模拟：学习率 $\eta $ 对覆盖率的影响}{table.caption.19}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {{4.2.4}}综合策略对比与稳健性}{26}{subsection.4.2.4}\protected@file@percent }
+\newlabel{subsec:robustness}{{{4.2.4}}{26}{}{subsection.4.2.4}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {4.7}{\ignorespaces 三策略综合对比（2024--2025 真实数据）}}{26}{table.caption.20}\protected@file@percent }
+\newlabel{tab:final}{{4.7}{26}{三策略综合对比（2024--2025 真实数据）}{table.caption.20}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {4.8}{\ignorespaces 严格样本外验证（信息比率，$\to $ 2025 测试）}}{26}{table.caption.21}\protected@file@percent }
+\newlabel{tab:oos}{{4.8}{26}{严格样本外验证（信息比率，$\to $ 2025 测试）}{table.caption.21}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {4.7}{\ignorespaces 严格样本外：近期（2024）训练 $\to $ 2025 测试净值}}{27}{figure.caption.22}\protected@file@percent }
+\newlabel{fig:oos2024}{{4.7}{27}{严格样本外：近期（2024）训练 $\to $ 2025 测试净值}{figure.caption.22}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {第\CJKnumber  {3}节}本章小结}{27}{section.4.3}\protected@file@percent }
+\newlabel{sec:exp_summary}{{第\CJKnumber  {3}节}{27}{}{section.4.3}{}}
+\@writefile{toc}{\contentsline {chapter}{\numberline {第\CJKnumber  {5}章}总结与展望}{28}{chapter.5}\protected@file@percent }
+\@writefile{lof}{\addvspace {10\p@ }}
+\@writefile{lot}{\addvspace {10\p@ }}
+\@writefile{toc}{\contentsline {section}{\numberline {第\CJKnumber  {1}节}工作总结}{28}{section.5.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {第\CJKnumber  {2}节}局限与未来展望}{29}{section.5.2}\protected@file@percent }
+\newlabel{sec:future_work}{{第\CJKnumber  {2}节}{29}{}{section.5.2}{}}
+\@setckpt{manual}{
+\setcounter{page}{31}
+\setcounter{equation}{0}
+\setcounter{enumi}{0}
+\setcounter{enumii}{0}
+\setcounter{enumiii}{0}
+\setcounter{enumiv}{0}
+\setcounter{footnote}{0}
+\setcounter{mpfootnote}{0}
+\setcounter{part}{0}
+\setcounter{chapter}{5}
+\setcounter{section}{2}
+\setcounter{subsection}{0}
+\setcounter{subsubsection}{0}
+\setcounter{paragraph}{0}
+\setcounter{subparagraph}{0}
+\setcounter{figure}{0}
+\setcounter{table}{0}
+\setcounter{section@level}{0}
+\setcounter{Item}{0}
+\setcounter{Hfootnote}{0}
+\setcounter{Hy@AnnotLevel}{0}
+\setcounter{bookmark@seq@number}{41}
+\setcounter{tabx@nest}{0}
+\setcounter{listtotal}{0}
+\setcounter{listcount}{0}
+\setcounter{liststart}{0}
+\setcounter{liststop}{0}
+\setcounter{citecount}{0}
+\setcounter{citetotal}{0}
+\setcounter{multicitecount}{0}
+\setcounter{multicitetotal}{0}
+\setcounter{instcount}{0}
+\setcounter{maxnames}{3}
+\setcounter{minnames}{3}
+\setcounter{maxitems}{3}
+\setcounter{minitems}{1}
+\setcounter{citecounter}{0}
+\setcounter{maxcitecounter}{0}
+\setcounter{savedcitecounter}{0}
+\setcounter{uniquelist}{0}
+\setcounter{uniquename}{0}
+\setcounter{refsection}{0}
+\setcounter{refsegment}{0}
+\setcounter{maxextratitle}{0}
+\setcounter{maxextratitleyear}{0}
+\setcounter{maxextraname}{0}
+\setcounter{maxextradate}{0}
+\setcounter{maxextraalpha}{0}
+\setcounter{abbrvpenalty}{50}
+\setcounter{highnamepenalty}{50}
+\setcounter{lownamepenalty}{25}
+\setcounter{maxparens}{3}
+\setcounter{parenlevel}{0}
+\setcounter{blx@maxsection}{0}
+\setcounter{mincomprange}{10}
+\setcounter{maxcomprange}{100000}
+\setcounter{mincompwidth}{1}
+\setcounter{afterword}{0}
+\setcounter{savedafterword}{0}
+\setcounter{annotator}{0}
+\setcounter{savedannotator}{0}
+\setcounter{author}{0}
+\setcounter{savedauthor}{0}
+\setcounter{bookauthor}{0}
+\setcounter{savedbookauthor}{0}
+\setcounter{commentator}{0}
+\setcounter{savedcommentator}{0}
+\setcounter{editor}{0}
+\setcounter{savededitor}{0}
+\setcounter{editora}{0}
+\setcounter{savededitora}{0}
+\setcounter{editorb}{0}
+\setcounter{savededitorb}{0}
+\setcounter{editorc}{0}
+\setcounter{savededitorc}{0}
+\setcounter{foreword}{0}
+\setcounter{savedforeword}{0}
+\setcounter{holder}{0}
+\setcounter{savedholder}{0}
+\setcounter{introduction}{0}
+\setcounter{savedintroduction}{0}
+\setcounter{namea}{0}
+\setcounter{savednamea}{0}
+\setcounter{nameb}{0}
+\setcounter{savednameb}{0}
+\setcounter{namec}{0}
+\setcounter{savednamec}{0}
+\setcounter{translator}{0}
+\setcounter{savedtranslator}{0}
+\setcounter{shortauthor}{0}
+\setcounter{savedshortauthor}{0}
+\setcounter{shorteditor}{0}
+\setcounter{savedshorteditor}{0}
+\setcounter{labelname}{0}
+\setcounter{savedlabelname}{0}
+\setcounter{institution}{0}
+\setcounter{savedinstitution}{0}
+\setcounter{lista}{0}
+\setcounter{savedlista}{0}
+\setcounter{listb}{0}
+\setcounter{savedlistb}{0}
+\setcounter{listc}{0}
+\setcounter{savedlistc}{0}
+\setcounter{listd}{0}
+\setcounter{savedlistd}{0}
+\setcounter{liste}{0}
+\setcounter{savedliste}{0}
+\setcounter{listf}{0}
+\setcounter{savedlistf}{0}
+\setcounter{location}{0}
+\setcounter{savedlocation}{0}
+\setcounter{organization}{0}
+\setcounter{savedorganization}{0}
+\setcounter{origlocation}{0}
+\setcounter{savedoriglocation}{0}
+\setcounter{origpublisher}{0}
+\setcounter{savedorigpublisher}{0}
+\setcounter{publisher}{0}
+\setcounter{savedpublisher}{0}
+\setcounter{language}{0}
+\setcounter{savedlanguage}{0}
+\setcounter{origlanguage}{0}
+\setcounter{savedoriglanguage}{0}
+\setcounter{pageref}{0}
+\setcounter{savedpageref}{0}
+\setcounter{textcitecount}{0}
+\setcounter{textcitetotal}{0}
+\setcounter{textcitemaxnames}{0}
+\setcounter{biburlbigbreakpenalty}{100}
+\setcounter{biburlbreakpenalty}{200}
+\setcounter{biburlnumpenalty}{0}
+\setcounter{biburlucpenalty}{0}
+\setcounter{biburllcpenalty}{0}
+\setcounter{smartand}{1}
+\setcounter{bbx:relatedcount}{0}
+\setcounter{bbx:relatedtotal}{0}
+\setcounter{cbx@tempcnta}{0}
+\setcounter{cbx@tempcntb}{0}
+\setcounter{cbx@tempcntc}{0}
+\setcounter{cbx@tempcntd}{0}
+\setcounter{parentequation}{0}
+\setcounter{caption@flags}{2}
+\setcounter{continuedfloat}{0}
+\setcounter{subfigure}{0}
+\setcounter{lofdepth}{1}
+\setcounter{subtable}{0}
+\setcounter{lotdepth}{1}
+\setcounter{lstnumber}{1}
+\setcounter{float@type}{16}
+\setcounter{algorithm}{3}
+\setcounter{ALG@line}{16}
+\setcounter{ALG@rem}{0}
+\setcounter{ALG@nested}{0}
+\setcounter{ALG@Lnr}{2}
+\setcounter{ALG@blocknr}{10}
+\setcounter{ALG@storecount}{0}
+\setcounter{ALG@tmpcounter}{0}
+\setcounter{Theorem}{0}
+\setcounter{lstlisting}{0}
+}
